@@ -1,0 +1,69 @@
+name: on-push-main
+
+on:
+  push:
+    branches:
+    - main
+    paths:
+      - '.github/workflows/on-push-main.yaml'
+      - '.github/workflows/on-version-tagged.yaml'
+      - '.gitops/**'
+      - 'apis/**'
+      - 'examples/**'
+      - 'functions/**'
+      - 'tests/**'
+      - 'upbound.yaml'
+
+permissions:
+  packages: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+
+  validate:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@v1.1.0
+    with:
+      examples: |
+        [
+          { "example": "examples/networks/example-minimal.yaml" },
+          { "example": "examples/networks/example-private-only.yaml" },
+          { "example": "examples/networks/example-manual-cidr.yaml" },
+          { "example": "examples/networks/example-dual-stack.yaml" },
+          { "example": "examples/networks/example-enterprise.yaml" }
+        ]
+      api_path: apis/networks
+      error_on_missing_schemas: true
+
+  test:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v1.1.0
+
+  e2e:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@feat/e2e2
+    with:
+      aws: true
+      timeout-minutes: 30
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  version-and-tag:
+    name: Version and Tag
+    needs:
+      - validate
+      - test
+      - e2e
+    uses: unbounded-tech/workflow-vnext-tag/.github/workflows/workflow.yaml@v1.20.1
+    secrets:
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+    with:
+      useDeployKey: true
+      yqPatches: |
+        patches:
+          - filePath: .gitops/deploy/values.yaml
+            selector: .version
+            valuePrefix: "v"
+          - filePath: .gitops/deploy/Chart.yaml
+            selector: .version
+            valuePrefix: ""

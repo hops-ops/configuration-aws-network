@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "crossplane": {
+    "managerFilePatterns": ["/\\.yaml$/", "/\\.yaml\\.gotmpl$/"]
+  },
+  "packageRules": [
+    {
+      "groupName": "crossplane-provider-aws",
+      "matchPackagePatterns": ["provider-family-aws", "provider-aws-.*"],
+      "matchDatasources": ["docker"]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["\\.yaml$"],
+      "matchStrings": ["package:\\s*ghcr\\.io/hops-ops/(?<depName>[^:]+):(?<currentValue>[^\\s]+)"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "hops-ops/{{{depName}}}"
+    }
+  ]
+}

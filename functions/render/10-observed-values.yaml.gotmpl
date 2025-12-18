@@ -1,0 +1,121 @@
+# code: language=yaml
+
+# Observed resources for status projection and usage gating
+{{ $observed := $.observed.resources | default (dict) }}
+{{ $resourceReadiness := dict }}
+
+# Check Ready condition for all observed resources
+{{ range $name, $entry := $observed }}
+  {{ $resourceReady := false }}
+  {{ $resource := $entry.resource | default (dict) }}
+  {{ $status := $resource.status | default (dict) }}
+  {{ $conditions := $status.conditions | default (list) }}
+  {{ range $conditions }}
+    {{ $conditionType := default "" (get . "type") }}
+    {{ $conditionStatus := default "" (get . "status") }}
+    {{ if and (eq $conditionType "Ready") (eq $conditionStatus "True") }}
+      {{ $resourceReady = true }}
+    {{ end }}
+  {{ end }}
+  {{ $resourceReadiness = merge $resourceReadiness (dict $name $resourceReady) }}
+{{ end }}
+
+# Extract VPC observed values
+{{ $vpcEntry := get $observed "vpc" | default (dict) }}
+{{ $vpcResource := $vpcEntry.resource | default (dict) }}
+{{ $vpcStatus := $vpcResource.status | default (dict) }}
+{{ $vpcAtProvider := $vpcStatus.atProvider | default (dict) }}
+{{ $observedVpcId := $vpcAtProvider.id | default "" }}
+{{ $observedVpcCidr := $vpcAtProvider.cidrBlock | default "" }}
+{{ $observedVpcIpv6Cidr := "" }}
+{{ $vpcIpv6CidrBlocks := $vpcAtProvider.ipv6CidrBlockAssociationSet | default (list) }}
+{{ range $vpcIpv6CidrBlocks }}
+  {{ $ipv6State := .ipv6CidrBlockState | default (dict) }}
+  {{ if eq ($ipv6State.state | default "") "associated" }}
+    {{ $observedVpcIpv6Cidr = .ipv6CidrBlock | default "" }}
+  {{ end }}
+{{ end }}
+{{ $vpcReady := get $resourceReadiness "vpc" | default false }}
+
+# Extract Internet Gateway observed values
+{{ $igwEntry := get $observed "internet-gateway" | default (dict) }}
+{{ $igwResource := $igwEntry.resource | default (dict) }}
+{{ $igwStatus := $igwResource.status | default (dict) }}
+{{ $igwAtProvider := $igwStatus.atProvider | default (dict) }}
+{{ $observedIgwId := $igwAtProvider.id | default "" }}
+{{ $igwReady := get $resourceReadiness "internet-gateway" | default false }}
+
+# Extract Egress-Only IGW observed values
+{{ $eigwEntry := get $observed "egress-only-igw" | default (dict) }}
+{{ $eigwResource := $eigwEntry.resource | default (dict) }}
+{{ $eigwStatus := $eigwResource.status | default (dict) }}
+{{ $eigwAtProvider := $eigwStatus.atProvider | default (dict) }}
+{{ $observedEigwId := $eigwAtProvider.id | default "" }}
+{{ $eigwReady := get $resourceReadiness "egress-only-igw" | default false }}
+
+# Extract subnet observed values
+{{ $observedSubnets := dict }}
+{{ range $azConfig := $azConfigs }}
+  {{ with $azConfig.public }}
+    {{ $subnetEntry := get $observed .resourceName | default (dict) }}
+    {{ $subnetResource := $subnetEntry.resource | default (dict) }}
+    {{ $subnetStatus := $subnetResource.status | default (dict) }}
+    {{ $subnetAtProvider := $subnetStatus.atProvider | default (dict) }}
+    {{ $observedSubnets = merge $observedSubnets (dict .resourceName (dict
+      "id" ($subnetAtProvider.id | default "")
+      "ipv4Cidr" ($subnetAtProvider.cidrBlock | default "")
+      "ipv6Cidr" ($subnetAtProvider.ipv6CidrBlock | default "")
+      "az" ($subnetAtProvider.availabilityZone | default "")
+    )) }}
+  {{ end }}
+  {{ with $azConfig.private }}
+    {{ $subnetEntry := get $observed .resourceName | default (dict) }}
+    {{ $subnetResource := $subnetEntry.resource | default (dict) }}
+    {{ $subnetStatus := $subnetResource.status | default (dict) }}
+    {{ $subnetAtProvider := $subnetStatus.atProvider | default (dict) }}
+    {{ $observedSubnets = merge $observedSubnets (dict .resourceName (dict
+      "id" ($subnetAtProvider.id | default "")
+      "ipv4Cidr" ($subnetAtProvider.cidrBlock | default "")
+      "ipv6Cidr" ($subnetAtProvider.ipv6CidrBlock | default "")
+      "az" ($subnetAtProvider.availabilityZone | default "")
+    )) }}
+  {{ end }}
+{{ end }}
+
+# Extract NAT Gateway observed values
+{{ $observedNatGateways := dict }}
+{{ range $natConfig := $natConfigsForCreation }}
+  {{ $natEntry := get $observed $natConfig.resourceName | default (dict) }}
+  {{ $natResource := $natEntry.resource | default (dict) }}
+  {{ $natStatus := $natResource.status | default (dict) }}
+  {{ $natAtProvider := $natStatus.atProvider | default (dict) }}
+  {{ $observedNatGateways = merge $observedNatGateways (dict $natConfig.resourceName (dict
+    "id" ($natAtProvider.id | default "")
+  )) }}
+{{ end }}
+
+# Extract Route Table observed values
+{{ $observedRouteTables := dict }}
+{{ $publicRtEntry := get $observed "rt-public" | default (dict) }}
+{{ $publicRtResource := $publicRtEntry.resource | default (dict) }}
+{{ $publicRtStatus := $publicRtResource.status | default (dict) }}
+{{ $publicRtAtProvider := $publicRtStatus.atProvider | default (dict) }}
+{{ $observedPublicRtId := $publicRtAtProvider.id | default "" }}
+
+{{ range $rt := $privateRouteTables }}
+  {{ $rtEntry := get $observed $rt.resourceName | default (dict) }}
+  {{ $rtResource := $rtEntry.resource | default (dict) }}
+  {{ $rtStatus := $rtResource.status | default (dict) }}
+  {{ $rtAtProvider := $rtStatus.atProvider | default (dict) }}
+  {{ $observedRouteTables = merge $observedRouteTables (dict $rt.resourceName (dict
+    "id" ($rtAtProvider.id | default "")
+  )) }}
+{{ end }}
+
+# Extract TGW Attachment observed values
+{{ $tgwAttachEntry := get $observed "tgw-attachment" | default (dict) }}
+{{ $tgwAttachResource := $tgwAttachEntry.resource | default (dict) }}
+{{ $tgwAttachStatus := $tgwAttachResource.status | default (dict) }}
+{{ $tgwAttachAtProvider := $tgwAttachStatus.atProvider | default (dict) }}
+{{ $observedTgwAttachmentId := $tgwAttachAtProvider.id | default "" }}
+{{ $observedTgwAttachmentState := $tgwAttachAtProvider.state | default "" }}

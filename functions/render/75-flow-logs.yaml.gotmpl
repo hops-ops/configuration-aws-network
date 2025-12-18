@@ -1,0 +1,35 @@
+# code: language=yaml
+
+{{- if $renderFlowLogs }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: FlowLog
+metadata:
+  name: {{ $networkName }}-flow-log
+  annotations:
+    {{ setResourceNameAnnotation "flow-log" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    trafficType: {{ $flowLogsTrafficType }}
+    {{- if eq $flowLogsDestination "cloudwatch" }}
+    logDestinationType: cloud-watch-logs
+    logDestination: {{ $flowLogsDestinationArn }}
+    {{- if $flowLogsIamRoleArn }}
+    iamRoleArn: {{ $flowLogsIamRoleArn }}
+    {{- end }}
+    {{- else if eq $flowLogsDestination "s3" }}
+    logDestinationType: s3
+    logDestination: {{ $flowLogsDestinationArn }}
+    {{- end }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $networkName }}-flow-log
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}

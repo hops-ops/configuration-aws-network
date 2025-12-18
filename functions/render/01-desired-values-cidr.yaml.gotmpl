@@ -1,0 +1,78 @@
+# code: language=yaml
+
+# CIDR Configuration
+{{ $cidr := $spec.cidr | default (dict) }}
+{{ $cidrMode := $cidr.mode | default "ipv4-only" }}
+
+# IPv4 Configuration
+{{ $ipv4 := $cidr.ipv4 | default (dict) }}
+{{ $ipv4Ipam := $ipv4.ipam | default (dict) }}
+{{ $ipv4Manual := $ipv4.manual | default (dict) }}
+
+# Determine IPv4 allocation mode
+{{ $useIpv4Ipam := false }}
+{{ $useIpv4Manual := false }}
+{{ $ipv4IpamPoolRef := $ipv4Ipam.poolRef | default (dict) }}
+{{ $ipv4IpamPoolRefName := $ipv4IpamPoolRef.name | default "" }}
+{{ $ipv4IpamGlobalPoolName := $ipv4Ipam.globalPoolName | default "" }}
+{{ $ipv4IpamPoolSelector := $ipv4Ipam.poolSelector | default (dict) }}
+{{ $ipv4IpamPoolSelectorLabels := $ipv4IpamPoolSelector.matchLabels | default (dict) }}
+
+# Build IPAM pool selector for IPv4
+{{ if $ipv4IpamGlobalPoolName }}
+  {{- $_ := set $ipv4IpamPoolSelectorLabels "hops.ops.com.ai/global-pool" $ipv4IpamGlobalPoolName }}
+{{ end }}
+{{ $ipv4IpamSelectorHasLabels := gt (len (keys $ipv4IpamPoolSelectorLabels)) 0 }}
+
+{{ if or $ipv4IpamPoolRefName $ipv4IpamSelectorHasLabels }}
+  {{- $useIpv4Ipam = true }}
+{{ else if $ipv4Manual.vpcCidr }}
+  {{- $useIpv4Manual = true }}
+{{ end }}
+
+# Manual IPv4 subnets
+{{ $manualVpcCidr := $ipv4Manual.vpcCidr | default "" }}
+{{ $manualSubnets := $ipv4Manual.subnets | default (dict) }}
+{{ $manualPublicSubnets := $manualSubnets.public | default (list) }}
+{{ $manualPrivateSubnets := $manualSubnets.private | default (list) }}
+
+# IPv6 Configuration
+{{ $ipv6 := $cidr.ipv6 | default (dict) }}
+{{ $ipv6Enabled := $ipv6.enabled | default false }}
+{{ $ipv6AmazonProvided := $ipv6.amazonProvided | default false }}
+{{ $ipv6Ipam := $ipv6.ipam | default (dict) }}
+{{ $ipv6IpamPoolRef := $ipv6Ipam.poolRef | default (dict) }}
+{{ $ipv6IpamPoolRefName := $ipv6IpamPoolRef.name | default "" }}
+{{ $ipv6IpamGlobalPoolName := $ipv6Ipam.globalPoolName | default "" }}
+{{ $ipv6IpamPoolSelector := $ipv6Ipam.poolSelector | default (dict) }}
+{{ $ipv6IpamPoolSelectorLabels := $ipv6IpamPoolSelector.matchLabels | default (dict) }}
+
+# Build IPAM pool selector for IPv6
+{{ if $ipv6IpamGlobalPoolName }}
+  {{- $_ := set $ipv6IpamPoolSelectorLabels "hops.ops.com.ai/global-pool" $ipv6IpamGlobalPoolName }}
+{{ end }}
+{{ $ipv6IpamSelectorHasLabels := gt (len (keys $ipv6IpamPoolSelectorLabels)) 0 }}
+
+# Determine IPv6 allocation mode
+{{ $useIpv6Ipam := false }}
+{{ $useIpv6AmazonProvided := false }}
+{{ if $ipv6Enabled }}
+  {{ if or $ipv6IpamPoolRefName $ipv6IpamSelectorHasLabels }}
+    {{- $useIpv6Ipam = true }}
+  {{ else if $ipv6AmazonProvided }}
+    {{- $useIpv6AmazonProvided = true }}
+  {{ end }}
+{{ end }}
+
+# Update address mode based on IPv6
+{{ if $ipv6Enabled }}
+  {{ if eq $cidrMode "ipv4-only" }}
+    {{- $cidrMode = "dual-stack" }}
+  {{ end }}
+{{ end }}
+
+# Derived flags
+{{ $isDualStack := eq $cidrMode "dual-stack" }}
+{{ $isIpv6Only := eq $cidrMode "ipv6-only" }}
+{{ $hasIpv4 := or (eq $cidrMode "ipv4-only") $isDualStack }}
+{{ $hasIpv6 := or $isDualStack $isIpv6Only }}

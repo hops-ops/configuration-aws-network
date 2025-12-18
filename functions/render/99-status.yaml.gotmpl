@@ -1,0 +1,91 @@
+# code: language=yaml
+
+---
+apiVersion: {{ $xr.apiVersion }}
+kind: {{ $xr.kind }}
+status:
+  ready: {{ $vpcReady }}
+  network:
+    name: {{ $networkName }}
+    region: {{ $awsRegion }}
+    vpcId: {{ $observedVpcId | default "Pending" }}
+    addressMode: {{ $cidrMode }}
+    cidr:
+      ipv4: {{ $observedVpcCidr | default "Pending" }}
+      {{- if $hasIpv6 }}
+      ipv6: {{ $observedVpcIpv6Cidr | default "Pending" }}
+      {{- end }}
+    availabilityZones:
+    {{- range $azConfig := $azConfigs }}
+      - {{ $azConfig.az }}
+    {{- end }}
+    subnets:
+      {{- if $hasPublicSubnets }}
+      public:
+      {{- range $azConfig := $azConfigs }}
+      {{- with $azConfig.public }}
+        {{ $subnetObs := get $observedSubnets .resourceName | default (dict) }}
+        - name: {{ .name }}
+          id: {{ $subnetObs.id | default "Pending" }}
+          availabilityZone: {{ $azConfig.az }}
+          ipv4CidrBlock: {{ $subnetObs.ipv4Cidr | default "Pending" }}
+          {{- if $hasIpv6 }}
+          ipv6CidrBlock: {{ $subnetObs.ipv6Cidr | default "Pending" }}
+          {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if $hasPrivateSubnets }}
+      private:
+      {{- range $azConfig := $azConfigs }}
+      {{- with $azConfig.private }}
+        {{ $subnetObs := get $observedSubnets .resourceName | default (dict) }}
+        - name: {{ .name }}
+          id: {{ $subnetObs.id | default "Pending" }}
+          availabilityZone: {{ $azConfig.az }}
+          ipv4CidrBlock: {{ $subnetObs.ipv4Cidr | default "Pending" }}
+          {{- if $hasIpv6 }}
+          ipv6CidrBlock: {{ $subnetObs.ipv6Cidr | default "Pending" }}
+          {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+    routeTables:
+      {{- if $hasPublicSubnets }}
+      public:
+        - name: {{ $publicRouteTableName }}
+          id: {{ $observedPublicRtId | default "Pending" }}
+      {{- end }}
+      {{- if $hasPrivateSubnets }}
+      private:
+      {{- range $azConfig := $azConfigs }}
+      {{- with $azConfig.privateRouteTable }}
+        {{ $rtObs := get $observedRouteTables .resourceName | default (dict) }}
+        - name: {{ .name }}
+          id: {{ $rtObs.id | default "Pending" }}
+          availabilityZone: {{ $azConfig.az }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+    {{- if $renderNatGateways }}
+    natGateways:
+    {{- range $natConfig := $natConfigsForCreation }}
+      {{ $natObs := get $observedNatGateways $natConfig.resourceName | default (dict) }}
+      - name: {{ $natConfig.name }}
+        id: {{ $natObs.id | default "Pending" }}
+        availabilityZone: {{ $awsRegion }}{{ $natConfig.targetSuffix }}
+    {{- end }}
+    {{- end }}
+    {{- if $renderInternetGateway }}
+    internetGateway:
+      id: {{ $observedIgwId | default "Pending" }}
+    {{- end }}
+    {{- if $renderEgressOnlyIgw }}
+    egressOnlyInternetGateway:
+      id: {{ $observedEigwId | default "Pending" }}
+    {{- end }}
+    {{- if $renderTgwAttachment }}
+    transitGatewayAttachment:
+      id: {{ $observedTgwAttachmentId | default "Pending" }}
+      state: {{ $observedTgwAttachmentState | default "Pending" }}
+    {{- end }}

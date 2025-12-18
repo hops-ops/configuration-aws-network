@@ -1,0 +1,22 @@
+# Private-Only Network - Cheapest option ($0/mo)
+# Creates VPC with only private subnets, no NAT, no internet access
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: isolated-vpc
+  namespace: dev
+spec:
+  clusterName: isolated
+  aws:
+    config:
+      region: us-west-2
+  cidr:
+    ipv4:
+      ipam:
+        poolRef:
+          name: my-ipam
+  subnets:
+    types:
+      - private
+  nat:
+    enabled: false

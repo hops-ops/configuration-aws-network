@@ -1,0 +1,99 @@
+# code: language=yaml
+
+# Public Subnets
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.public }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  name: {{ .name }}
+  annotations:
+    {{ setResourceNameAnnotation .resourceName }}
+  labels:
+    {{ .labels | toYaml | nindent 4 }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    availabilityZone: {{ $azConfig.az }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    mapPublicIpOnLaunch: {{ .mapPublicIpOnLaunch }}
+    {{- if $useIpv4Ipam }}
+    ipv4IpamPoolId: ""
+    ipv4NetmaskLength: {{ .netmaskLength }}
+    {{- if $ipv4IpamPoolRefName }}
+    ipv4IpamPoolIdRef:
+      name: {{ $ipv4IpamPoolRefName }}
+    {{- else if $ipv4IpamSelectorHasLabels }}
+    ipv4IpamPoolIdSelector:
+      matchLabels:
+        {{ $ipv4IpamPoolSelectorLabels | toYaml | nindent 8 }}
+    {{- end }}
+    {{- else if $useIpv4Manual }}
+    {{- range $manualPublicSubnets }}
+    {{- if eq .availabilityZone $azConfig.suffix }}
+    cidrBlock: {{ .cidr }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if $hasIpv6 }}
+    assignIpv6AddressOnCreation: true
+    ipv6Native: {{ $isIpv6Only }}
+    {{- end }}
+    tags:
+      {{ .tags | toYaml | nindent 6 }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}
+
+# Private Subnets
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.private }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  name: {{ .name }}
+  annotations:
+    {{ setResourceNameAnnotation .resourceName }}
+  labels:
+    {{ .labels | toYaml | nindent 4 }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    availabilityZone: {{ $azConfig.az }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    mapPublicIpOnLaunch: {{ .mapPublicIpOnLaunch }}
+    {{- if $useIpv4Ipam }}
+    ipv4IpamPoolId: ""
+    ipv4NetmaskLength: {{ .netmaskLength }}
+    {{- if $ipv4IpamPoolRefName }}
+    ipv4IpamPoolIdRef:
+      name: {{ $ipv4IpamPoolRefName }}
+    {{- else if $ipv4IpamSelectorHasLabels }}
+    ipv4IpamPoolIdSelector:
+      matchLabels:
+        {{ $ipv4IpamPoolSelectorLabels | toYaml | nindent 8 }}
+    {{- end }}
+    {{- else if $useIpv4Manual }}
+    {{- range $manualPrivateSubnets }}
+    {{- if eq .availabilityZone $azConfig.suffix }}
+    cidrBlock: {{ .cidr }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if $hasIpv6 }}
+    assignIpv6AddressOnCreation: true
+    ipv6Native: {{ $isIpv6Only }}
+    {{- end }}
+    tags:
+      {{ .tags | toYaml | nindent 6 }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}

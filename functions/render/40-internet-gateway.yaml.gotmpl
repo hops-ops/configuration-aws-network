@@ -1,0 +1,24 @@
+# code: language=yaml
+
+{{- if $renderInternetGateway }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: InternetGateway
+metadata:
+  name: {{ $igwName }}
+  annotations:
+    {{ setResourceNameAnnotation "internet-gateway" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $igwName }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}

@@ -1,0 +1,195 @@
+# code: language=yaml
+
+# Public Route Table (shared across all public subnets)
+{{- if $hasPublicSubnets }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: RouteTable
+metadata:
+  name: {{ $publicRouteTableName }}
+  annotations:
+    {{ setResourceNameAnnotation "rt-public" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+    hops.ops.com.ai/tier: public
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $publicRouteTableName }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+---
+# Default IPv4 route to Internet Gateway
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Route
+metadata:
+  name: {{ $networkName }}-public-default-ipv4
+  annotations:
+    {{ setResourceNameAnnotation "route-public-default-ipv4" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    routeTableIdRef:
+      name: {{ $publicRouteTableName }}
+    destinationCidrBlock: 0.0.0.0/0
+    gatewayIdRef:
+      name: {{ $igwName }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- if $hasIpv6 }}
+---
+# Default IPv6 route to Internet Gateway
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Route
+metadata:
+  name: {{ $networkName }}-public-default-ipv6
+  annotations:
+    {{ setResourceNameAnnotation "route-public-default-ipv6" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    routeTableIdRef:
+      name: {{ $publicRouteTableName }}
+    destinationIpv6CidrBlock: "::/0"
+    gatewayIdRef:
+      name: {{ $igwName }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+# Public subnet associations
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.public }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: RouteTableAssociation
+metadata:
+  name: {{ .name }}-rta
+  annotations:
+    {{ setResourceNameAnnotation (printf "rta-public-%s" $azConfig.suffix) }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    routeTableIdRef:
+      name: {{ $publicRouteTableName }}
+    subnetIdRef:
+      name: {{ .name }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+# Private Route Tables (one per AZ for NAT routing)
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.privateRouteTable }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: RouteTable
+metadata:
+  name: {{ .name }}
+  annotations:
+    {{ setResourceNameAnnotation .resourceName }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+    hops.ops.com.ai/tier: private
+    hops.ops.com.ai/az: {{ $azConfig.suffix }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ .name }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- if $renderNatGateways }}
+{{- with $azConfig.nat }}
+---
+# Default IPv4 route to NAT Gateway
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Route
+metadata:
+  name: {{ $networkName }}-private-{{ $azConfig.suffix }}-default-ipv4
+  annotations:
+    {{ setResourceNameAnnotation (printf "route-private-%s-default-ipv4" $azConfig.suffix) }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    routeTableIdRef:
+      name: {{ $azConfig.privateRouteTable.name }}
+    destinationCidrBlock: 0.0.0.0/0
+    natGatewayIdRef:
+      name: {{ .name }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}
+{{- if $renderEgressOnlyIgw }}
+---
+# Default IPv6 route to Egress-Only IGW
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Route
+metadata:
+  name: {{ $networkName }}-private-{{ $azConfig.suffix }}-default-ipv6
+  annotations:
+    {{ setResourceNameAnnotation (printf "route-private-%s-default-ipv6" $azConfig.suffix) }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    routeTableIdRef:
+      name: {{ $azConfig.privateRouteTable.name }}
+    destinationIpv6CidrBlock: "::/0"
+    egressOnlyGatewayIdRef:
+      name: {{ $eigwName }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+# Private subnet associations
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.private }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: RouteTableAssociation
+metadata:
+  name: {{ .name }}-rta
+  annotations:
+    {{ setResourceNameAnnotation (printf "rta-private-%s" $azConfig.suffix) }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    routeTableIdRef:
+      name: {{ $azConfig.privateRouteTable.name }}
+    subnetIdRef:
+      name: {{ .name }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,128 @@
+# code: language=yaml
+
+# Build AZ configurations
+{{ $hasAZs := gt (len $availabilityZones) 0 }}
+{{ $hasPublicSubnets := and $includePublic $hasAZs }}
+{{ $hasPrivateSubnets := and $includePrivate $hasAZs }}
+
+# Determine if NAT is needed
+{{ $natDesired := and $natEnabled $hasPublicSubnets $hasPrivateSubnets (ne $natStrategyUpper "NONE") }}
+{{ $singleNatSuffix := "" }}
+{{ if gt (len $availabilityZones) 0 }}
+  {{- $singleNatSuffix = index $availabilityZones 0 }}
+{{ end }}
+
+# Build subnet configurations per AZ
+{{ $azConfigs := list }}
+{{ range $i, $suffix := $availabilityZones }}
+  {{ $azName := printf "%s%s" $awsRegion $suffix }}
+  {{ $azConfig := dict "suffix" $suffix "az" $azName "index" $i }}
+
+  # Public subnet config
+  {{ if $includePublic }}
+    {{ $publicName := printf "%s-public-%s" $networkName $suffix }}
+    {{ $publicTags := merge (dict) $awsTags (dict
+      "Name" $publicName
+      "hops.ops.com.ai/tier" "public"
+      "hops.ops.com.ai/az" $suffix
+      "kubernetes.io/role/elb" "1"
+    ) }}
+    {{ $_ := set $azConfig "public" (dict
+      "name" $publicName
+      "resourceName" (printf "subnet-public-%s" $suffix)
+      "tags" $publicTags
+      "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $suffix)
+      "mapPublicIpOnLaunch" true
+      "netmaskLength" $netmaskLength
+      "ipv6NetmaskLength" $ipv6NetmaskLength
+    ) }}
+  {{ end }}
+
+  # Private subnet config
+  {{ if $includePrivate }}
+    {{ $privateName := printf "%s-private-%s" $networkName $suffix }}
+    {{ $privateTags := merge (dict) $awsTags (dict
+      "Name" $privateName
+      "hops.ops.com.ai/tier" "private"
+      "hops.ops.com.ai/az" $suffix
+      "kubernetes.io/role/internal-elb" "1"
+    ) }}
+    {{ $_ := set $azConfig "private" (dict
+      "name" $privateName
+      "resourceName" (printf "subnet-private-%s" $suffix)
+      "tags" $privateTags
+      "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $suffix)
+      "mapPublicIpOnLaunch" false
+      "netmaskLength" $netmaskLength
+      "ipv6NetmaskLength" $ipv6NetmaskLength
+    ) }}
+  {{ end }}
+
+  # NAT Gateway config (for private subnets with egress)
+  {{ if and $natDesired $includePrivate $includePublic }}
+    {{ $targetSuffix := $suffix }}
+    {{ if and (eq $natStrategyUpper "SINGLEAZ") $singleNatSuffix }}
+      {{ $targetSuffix = $singleNatSuffix }}
+    {{ end }}
+    {{ $natName := printf "%s-nat-%s" $networkName $targetSuffix }}
+    {{ $publicSubnetForNat := printf "%s-public-%s" $networkName $targetSuffix }}
+    {{ $ownsNat := or (eq $natStrategyUpper "HIGHLYAVAILABLE") (and (eq $natStrategyUpper "SINGLEAZ") (eq $suffix $singleNatSuffix)) }}
+    {{ $natConfig := dict
+      "name" $natName
+      "resourceName" (printf "nat-%s" $targetSuffix)
+      "eipName" (printf "%s-nat-eip-%s" $networkName $targetSuffix)
+      "eipResourceName" (printf "eip-%s" $targetSuffix)
+      "publicSubnet" $publicSubnetForNat
+      "publicSubnetResourceName" (printf "subnet-public-%s" $targetSuffix)
+      "owns" $ownsNat
+      "targetSuffix" $targetSuffix
+    }}
+    {{ $_ := set $azConfig "nat" $natConfig }}
+  {{ end }}
+
+  # Private route table config (per-AZ for NAT routing)
+  {{ if $includePrivate }}
+    {{ $privateRtName := printf "%s-private-rt-%s" $networkName $suffix }}
+    {{ $_ := set $azConfig "privateRouteTable" (dict
+      "name" $privateRtName
+      "resourceName" (printf "rt-private-%s" $suffix)
+    ) }}
+  {{ end }}
+
+  {{ $hasResources := or (get $azConfig "public") (get $azConfig "private") }}
+  {{ if $hasResources }}
+    {{ $azConfigs = append $azConfigs $azConfig }}
+  {{ end }}
+{{ end }}
+
+# Collect lists for easy iteration
+{{ $publicSubnets := list }}
+{{ $privateSubnets := list }}
+{{ $natConfigsForCreation := list }}
+{{ $privateRouteTables := list }}
+
+{{ range $azConfigs }}
+  {{ with .public }}
+    {{ $publicSubnets = append $publicSubnets . }}
+  {{ end }}
+  {{ with .private }}
+    {{ $privateSubnets = append $privateSubnets . }}
+  {{ end }}
+  {{ with .nat }}
+    {{ if .owns }}
+      {{ $natConfigsForCreation = append $natConfigsForCreation . }}
+    {{ end }}
+  {{ end }}
+  {{ with .privateRouteTable }}
+    {{ $privateRouteTables = append $privateRouteTables . }}
+  {{ end }}
+{{ end }}
+
+# Update derived flags
+{{ $hasPublicSubnets = gt (len $publicSubnets) 0 }}
+{{ $hasPrivateSubnets = gt (len $privateSubnets) 0 }}
+{{ $renderNatGateways := and $natDesired (gt (len $natConfigsForCreation) 0) }}
+{{ $renderInternetGateway := $hasPublicSubnets }}
+{{ $renderEgressOnlyIgw := and $hasIpv6 $hasPrivateSubnets }}
+{{ $renderTgwAttachment := and $tgwEnabled $tgwId $hasPrivateSubnets }}
+{{ $renderFlowLogs := and $flowLogsEnabled $flowLogsDestinationArn }}

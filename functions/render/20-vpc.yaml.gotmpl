@@ -1,0 +1,42 @@
+# code: language=yaml
+
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  name: {{ $vpcName }}
+  annotations:
+    {{ setResourceNameAnnotation "vpc" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    enableDnsHostnames: {{ $enableDnsHostnames }}
+    enableDnsSupport: {{ $enableDnsSupport }}
+    {{- if $useIpv4Ipam }}
+    ipv4IpamPoolId: ""
+    ipv4NetmaskLength: 16
+    {{- if $ipv4IpamPoolRefName }}
+    ipv4IpamPoolIdRef:
+      name: {{ $ipv4IpamPoolRefName }}
+    {{- else if $ipv4IpamSelectorHasLabels }}
+    ipv4IpamPoolIdSelector:
+      matchLabels:
+        {{ $ipv4IpamPoolSelectorLabels | toYaml | nindent 8 }}
+    {{- end }}
+    {{- else if $useIpv4Manual }}
+    cidrBlock: {{ $manualVpcCidr }}
+    {{- else }}
+    # Fallback - should not reach here
+    cidrBlock: 10.0.0.0/16
+    {{- end }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $vpcName }}
+    {{- with $vpcForProvider }}
+    {{ toYaml . | nindent 4 }}
+    {{- end }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}

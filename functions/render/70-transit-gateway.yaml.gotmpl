@@ -1,0 +1,33 @@
+# code: language=yaml
+
+{{- if $renderTgwAttachment }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: TransitGatewayVPCAttachment
+metadata:
+  name: {{ $networkName }}-tgw-attachment
+  annotations:
+    {{ setResourceNameAnnotation "tgw-attachment" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    transitGatewayId: {{ $tgwId }}
+    vpcIdRef:
+      name: {{ $vpcName }}
+    subnetIdsRefs:
+    {{- range $azConfig := $azConfigs }}
+    {{- with $azConfig.private }}
+      - name: {{ .name }}
+    {{- end }}
+    {{- end }}
+    transitGatewayDefaultRouteTableAssociation: {{ $tgwRoutePropagation }}
+    transitGatewayDefaultRouteTablePropagation: {{ $tgwRoutePropagation }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $networkName }}-tgw-attachment
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}

@@ -1,0 +1,72 @@
+# code: language=yaml
+
+{{ $xr := getCompositeResource . }}
+{{ $metadata := $xr.metadata | default (dict) }}
+{{ $spec := $xr.spec | default (dict) }}
+
+# Core identification
+{{ $networkName := $metadata.name | default "network" }}
+{{ $clusterName := $spec.clusterName | default $networkName }}
+{{ $deletionPolicy := $spec.deletionPolicy | default "Delete" }}
+{{ $managementPolicies := $spec.managementPolicies | default (list "*") }}
+
+# AWS configuration
+{{ $aws := $spec.aws | default (dict) }}
+{{ $awsConfig := $aws.config | default (dict) }}
+{{ $awsProviderConfig := $aws.providerConfig | default $clusterName | default "default" }}
+{{ $awsRegion := $awsConfig.region | default "" }}
+{{ $awsAccountId := $awsConfig.accountId | default "" }}
+
+# Default AWS tags
+{{ $defaultTags := dict "hops" "true" "hops.ops.com.ai/network" $networkName }}
+{{ $userTags := $awsConfig.tags | default (dict) }}
+{{ $awsTags := merge (dict) $defaultTags $userTags }}
+
+# VPC configuration
+{{ $vpc := $spec.vpc | default (dict) }}
+{{ $vpcForProvider := $vpc.forProvider | default (dict) }}
+{{ $enableDnsHostnames := $vpcForProvider.enableDnsHostnames | default true }}
+{{ $enableDnsSupport := $vpcForProvider.enableDnsSupport | default true }}
+
+# Subnet configuration
+{{ $subnets := $spec.subnets | default (dict) }}
+{{ $availabilityZones := $subnets.availabilityZones | default (list "a" "b" "c") }}
+{{ $netmaskLength := $subnets.netmaskLength | default 20 }}
+{{ $ipv6NetmaskLength := $subnets.ipv6NetmaskLength | default 64 }}
+{{ $subnetTypes := $subnets.types | default (list "public" "private") }}
+
+# Build subnet type set for quick lookup
+{{ $subnetTypeSet := dict }}
+{{ range $subnetTypes }}
+  {{- $_ := set $subnetTypeSet (lower .) true }}
+{{ end }}
+{{ $includePublic := hasKey $subnetTypeSet "public" }}
+{{ $includePrivate := hasKey $subnetTypeSet "private" }}
+
+# NAT configuration
+{{ $nat := $spec.nat | default (dict) }}
+{{ $natEnabled := $nat.enabled | default true }}
+{{ $natStrategy := $nat.strategy | default "SingleAz" }}
+{{ $natStrategyUpper := upper $natStrategy }}
+
+# Transit Gateway configuration
+{{ $transitGateway := $spec.transitGateway | default (dict) }}
+{{ $tgwEnabled := $transitGateway.enabled | default false }}
+{{ $tgwConfig := $transitGateway.config | default (dict) }}
+{{ $tgwId := $tgwConfig.tgwId | default "" }}
+{{ $tgwRoutePropagation := $tgwConfig.routeTablePropagation | default true }}
+
+# Flow Logs configuration
+{{ $flowLogs := $spec.flowLogs | default (dict) }}
+{{ $flowLogsEnabled := $flowLogs.enabled | default false }}
+{{ $flowLogsConfig := $flowLogs.config | default (dict) }}
+{{ $flowLogsDestination := $flowLogsConfig.destination | default "cloudwatch" }}
+{{ $flowLogsDestinationArn := $flowLogsConfig.logDestinationArn | default "" }}
+{{ $flowLogsIamRoleArn := $flowLogsConfig.iamRoleArn | default "" }}
+{{ $flowLogsTrafficType := $flowLogsConfig.trafficType | default "ALL" }}
+
+# Resource naming
+{{ $vpcName := printf "%s-vpc" $networkName }}
+{{ $igwName := printf "%s-igw" $networkName }}
+{{ $eigwName := printf "%s-eigw" $networkName }}
+{{ $publicRouteTableName := printf "%s-public-rt" $networkName }}

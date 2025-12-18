@@ -1,0 +1,16 @@
+# Minimal Network - Individual use case
+# Creates VPC with 3 public + 3 private subnets, SingleAz NAT (~$32/mo)
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: my-vpc
+  namespace: dev
+spec:
+  clusterName: my-cluster
+  aws:
+    config:
+      region: us-east-1
+  cidr:
+    ipv4:
+      ipam:
+        globalPoolName: sandbox

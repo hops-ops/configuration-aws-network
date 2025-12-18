@@ -1,0 +1,48 @@
+# code: language=yaml
+
+{{- if $renderNatGateways }}
+{{- range $natConfig := $natConfigsForCreation }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: EIP
+metadata:
+  name: {{ $natConfig.eipName }}
+  annotations:
+    {{ setResourceNameAnnotation $natConfig.eipResourceName }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    domain: vpc
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $natConfig.eipName }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+---
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: NATGateway
+metadata:
+  name: {{ $natConfig.name }}
+  annotations:
+    {{ setResourceNameAnnotation $natConfig.resourceName }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    connectivityType: public
+    allocationIdRef:
+      name: {{ $natConfig.eipName }}
+    subnetIdRef:
+      name: {{ $natConfig.publicSubnet }}
+    tags:
+      {{ $awsTags | toYaml | nindent 6 }}
+      Name: {{ $natConfig.name }}
+  providerConfigRef:
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}

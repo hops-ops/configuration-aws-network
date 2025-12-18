@@ -1,0 +1,418 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: networks.aws.hops.ops.com.ai
+spec:
+  scope: Namespaced
+  group: aws.hops.ops.com.ai
+  names:
+    kind: Network
+    plural: networks
+  versions:
+  - name: v1alpha1
+    referenceable: true
+    served: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        description: Network creates IPAM-backed (or manual CIDR) AWS VPCs with subnets, routing, and optional enterprise features.
+        required:
+        - spec
+        properties:
+          spec:
+            type: object
+            description: Desired state for the Network.
+            properties:
+              clusterName:
+                type: string
+                description: Optional identifier used as default for providerConfig selection.
+              deletionPolicy:
+                type: string
+                description: Delete or Orphan composed resources when the XR is deleted.
+                enum:
+                - Delete
+                - Orphan
+                default: Delete
+              managementPolicies:
+                type: array
+                description: Management operations permitted on composed resources.
+                items:
+                  type: string
+                  enum:
+                  - "*"
+                  - Create
+                  - Observe
+                  - Update
+                  - Delete
+                  - LateInitialize
+                default:
+                - "*"
+
+              # AWS Provider Configuration
+              aws:
+                type: object
+                description: AWS provider configuration.
+                properties:
+                  providerConfig:
+                    type: string
+                    description: ProviderConfig for AWS resources. Defaults to clusterName or "default".
+                  config:
+                    type: object
+                    description: AWS-specific configuration.
+                    required:
+                    - region
+                    properties:
+                      region:
+                        type: string
+                        description: AWS region for all managed resources.
+                      accountId:
+                        type: string
+                        description: AWS account ID for tagging and documentation.
+                      tags:
+                        type: object
+                        description: Extra AWS tags merged with defaults.
+                        x-kubernetes-preserve-unknown-fields: true
+
+              # CIDR Allocation
+              cidr:
+                type: object
+                description: CIDR allocation configuration for IPv4 and IPv6.
+                properties:
+                  ipv4:
+                    type: object
+                    description: IPv4 CIDR configuration.
+                    properties:
+                      ipam:
+                        type: object
+                        description: IPAM-based allocation (recommended).
+                        properties:
+                          poolRef:
+                            type: object
+                            description: Reference to IPAM pool resource.
+                            properties:
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                          globalPoolName:
+                            type: string
+                            description: Name of global IPAM pool (selects via label).
+                          poolSelector:
+                            type: object
+                            description: Custom label selector for IPAM pool.
+                            properties:
+                              matchLabels:
+                                type: object
+                                additionalProperties:
+                                  type: string
+                      manual:
+                        type: object
+                        description: Manual CIDR allocation (fallback when no IPAM).
+                        properties:
+                          vpcCidr:
+                            type: string
+                            description: VPC CIDR block (e.g., 10.0.0.0/16).
+                          subnets:
+                            type: object
+                            description: Manual subnet CIDR definitions.
+                            properties:
+                              public:
+                                type: array
+                                items:
+                                  type: object
+                                  required:
+                                  - cidr
+                                  - availabilityZone
+                                  properties:
+                                    cidr:
+                                      type: string
+                                    availabilityZone:
+                                      type: string
+                              private:
+                                type: array
+                                items:
+                                  type: object
+                                  required:
+                                  - cidr
+                                  - availabilityZone
+                                  properties:
+                                    cidr:
+                                      type: string
+                                    availabilityZone:
+                                      type: string
+                  ipv6:
+                    type: object
+                    description: IPv6 CIDR configuration (enables dual-stack).
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Enable IPv6 for the VPC.
+                        default: false
+                      amazonProvided:
+                        type: boolean
+                        description: Request Amazon-provided /56 IPv6 CIDR per-VPC.
+                        default: false
+                      ipam:
+                        type: object
+                        description: IPAM-based IPv6 allocation.
+                        properties:
+                          poolRef:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                          globalPoolName:
+                            type: string
+                            description: Name of global IPv6 IPAM pool.
+                          poolSelector:
+                            type: object
+                            properties:
+                              matchLabels:
+                                type: object
+                                additionalProperties:
+                                  type: string
+                  mode:
+                    type: string
+                    description: Address mode for subnets.
+                    enum:
+                    - ipv4-only
+                    - dual-stack
+                    - ipv6-only
+                    default: ipv4-only
+
+              # Subnet Configuration
+              subnets:
+                type: object
+                description: Subnet configuration (for IPAM mode).
+                properties:
+                  availabilityZones:
+                    type: array
+                    description: AZ suffixes to span (appended to region).
+                    items:
+                      type: string
+                    default:
+                    - a
+                    - b
+                    - c
+                  netmaskLength:
+                    type: integer
+                    description: Netmask length for each subnet.
+                    minimum: 16
+                    maximum: 28
+                    default: 20
+                  ipv6NetmaskLength:
+                    type: integer
+                    description: IPv6 netmask length for each subnet (default /64).
+                    minimum: 44
+                    maximum: 64
+                    default: 64
+                  types:
+                    type: array
+                    description: Subnet types to create in each AZ.
+                    items:
+                      type: string
+                      enum:
+                      - public
+                      - private
+                    default:
+                    - public
+                    - private
+
+              # NAT Gateway Strategy
+              nat:
+                type: object
+                description: NAT Gateway configuration for private subnet egress.
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Enable NAT Gateways.
+                    default: true
+                  strategy:
+                    type: string
+                    description: NAT deployment strategy.
+                    enum:
+                    - SingleAz
+                    - HighlyAvailable
+                    - None
+                    default: SingleAz
+
+              # Transit Gateway
+              transitGateway:
+                type: object
+                description: Optional Transit Gateway attachment.
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Enable Transit Gateway attachment.
+                    default: false
+                  config:
+                    type: object
+                    properties:
+                      tgwId:
+                        type: string
+                        description: Existing Transit Gateway ID (tgw-xxx).
+                      routeTablePropagation:
+                        type: boolean
+                        description: Enable route table propagation.
+                        default: true
+
+              # Flow Logs
+              flowLogs:
+                type: object
+                description: Optional VPC Flow Logs.
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Enable VPC Flow Logs.
+                    default: false
+                  config:
+                    type: object
+                    properties:
+                      destination:
+                        type: string
+                        description: Log destination type.
+                        enum:
+                        - cloudwatch
+                        - s3
+                        default: cloudwatch
+                      logDestinationArn:
+                        type: string
+                        description: ARN of CloudWatch Logs group or S3 bucket.
+                      iamRoleArn:
+                        type: string
+                        description: IAM role ARN for CloudWatch delivery.
+                      trafficType:
+                        type: string
+                        description: Traffic type to capture.
+                        enum:
+                        - ALL
+                        - ACCEPT
+                        - REJECT
+                        default: ALL
+
+              # VPC pass-through
+              vpc:
+                type: object
+                description: VPC configuration overrides.
+                properties:
+                  forProvider:
+                    type: object
+                    description: Pass-through for VPC forProvider fields.
+                    x-kubernetes-preserve-unknown-fields: true
+
+          status:
+            type: object
+            description: Observed state of the Network.
+            properties:
+              ready:
+                type: boolean
+              network:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  region:
+                    type: string
+                  vpcId:
+                    type: string
+                  addressMode:
+                    type: string
+                  cidr:
+                    type: object
+                    properties:
+                      ipv4:
+                        type: string
+                      ipv6:
+                        type: string
+                  availabilityZones:
+                    type: array
+                    items:
+                      type: string
+                  subnets:
+                    type: object
+                    properties:
+                      public:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            id:
+                              type: string
+                            availabilityZone:
+                              type: string
+                            ipv4CidrBlock:
+                              type: string
+                            ipv6CidrBlock:
+                              type: string
+                      private:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            id:
+                              type: string
+                            availabilityZone:
+                              type: string
+                            ipv4CidrBlock:
+                              type: string
+                            ipv6CidrBlock:
+                              type: string
+                  routeTables:
+                    type: object
+                    properties:
+                      public:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            id:
+                              type: string
+                      private:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            id:
+                              type: string
+                            availabilityZone:
+                              type: string
+                  natGateways:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        id:
+                          type: string
+                        availabilityZone:
+                          type: string
+                        eipAllocationId:
+                          type: string
+                  internetGateway:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  egressOnlyInternetGateway:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                  transitGatewayAttachment:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      state:
+                        type: string

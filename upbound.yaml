@@ -1,0 +1,30 @@
+apiVersion: meta.dev.upbound.io/v2alpha1
+kind: Project
+metadata:
+  name: configuration-network
+spec:
+  dependsOn:
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Provider
+    package: xpkg.upbound.io/crossplane-contrib/provider-family-aws
+    version: '>=v2.2.0'
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Provider
+    package: xpkg.upbound.io/crossplane-contrib/provider-aws-ec2
+    version: '>=v2.2.0'
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Function
+    package: xpkg.upbound.io/crossplane-contrib/function-go-templating
+    version: '>=v0.10.0'
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Function
+    package: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+    version: '>=v0.5.1'
+  description: |
+    Network creates IPAM-backed (or manual CIDR) AWS VPCs with subnets, routing,
+    NAT gateways, and optional enterprise features. Supports IPv4, IPv6, and
+    dual-stack configurations for modern workloads including IPv6 EKS.
+  license: Apache-2.0
+  maintainer: Hops Platform Team <platform@hops.ops.com.ai>
+  repository: ghcr.io/hops-ops/configuration-network
+  source: github.com/hops-ops/configuration-network
