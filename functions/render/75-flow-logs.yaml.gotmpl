@@ -15,7 +15,7 @@ spec:
   forProvider:
     region: {{ $awsRegion }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     trafficType: {{ $flowLogsTrafficType }}
     {{- if eq $flowLogsDestination "cloudwatch" }}
     logDestinationType: cloud-watch-logs

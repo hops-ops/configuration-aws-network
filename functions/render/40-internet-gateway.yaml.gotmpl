@@ -5,7 +5,7 @@
 apiVersion: ec2.aws.upbound.io/v1beta1
 kind: InternetGateway
 metadata:
-  name: {{ $igwName }}
+  name: {{ $networkName }}
   annotations:
     {{ setResourceNameAnnotation "internet-gateway" }}
   labels:
@@ -15,10 +15,32 @@ spec:
   forProvider:
     region: {{ $awsRegion }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
-      Name: {{ $igwName }}
+      Name: {{ $networkName }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: VPC protects Internet Gateway
+{{- if and $vpcReady $igwReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-igw
+  annotations:
+    {{ setResourceNameAnnotation "usage-vpc-igw" }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: InternetGateway
+    resourceRef:
+      name: {{ $networkName }}
+{{- end }}
 {{- end }}

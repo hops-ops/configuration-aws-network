@@ -2,6 +2,7 @@
 
 # Public Route Table (shared across all public subnets)
 {{- if $hasPublicSubnets }}
+{{ $publicRtReady := get $resourceReadiness "rt-public" | default false }}
 ---
 apiVersion: ec2.aws.upbound.io/v1beta1
 kind: RouteTable
@@ -17,12 +18,34 @@ spec:
   forProvider:
     region: {{ $awsRegion }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
       Name: {{ $publicRouteTableName }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: VPC protects public route table
+{{- if and $vpcReady $publicRtReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-rt-public
+  annotations:
+    {{ setResourceNameAnnotation "usage-vpc-rt-public" }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: RouteTable
+    resourceRef:
+      name: {{ $publicRouteTableName }}
+{{- end }}
 ---
 # Default IPv4 route to Internet Gateway
 apiVersion: ec2.aws.upbound.io/v1beta1
@@ -41,9 +64,32 @@ spec:
       name: {{ $publicRouteTableName }}
     destinationCidrBlock: 0.0.0.0/0
     gatewayIdRef:
-      name: {{ $igwName }}
+      name: {{ $networkName }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: IGW protects public IPv4 route
+{{ $routeIpv4Ready := get $resourceReadiness "route-public-default-ipv4" | default false }}
+{{- if and $igwReady $routeIpv4Ready }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-igw-protects-route-public-ipv4
+  annotations:
+    {{ setResourceNameAnnotation "usage-igw-route-public-ipv4" }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: InternetGateway
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: Route
+    resourceRef:
+      name: {{ $networkName }}-public-default-ipv4
+{{- end }}
 {{- if $hasIpv6 }}
 ---
 # Default IPv6 route to Internet Gateway
@@ -63,9 +109,32 @@ spec:
       name: {{ $publicRouteTableName }}
     destinationIpv6CidrBlock: "::/0"
     gatewayIdRef:
-      name: {{ $igwName }}
+      name: {{ $networkName }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: IGW protects public IPv6 route
+{{ $routeIpv6Ready := get $resourceReadiness "route-public-default-ipv6" | default false }}
+{{- if and $igwReady $routeIpv6Ready }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-igw-protects-route-public-ipv6
+  annotations:
+    {{ setResourceNameAnnotation "usage-igw-route-public-ipv6" }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: InternetGateway
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: Route
+    resourceRef:
+      name: {{ $networkName }}-public-default-ipv6
+{{- end }}
 {{- end }}
 # Public subnet associations
 {{- range $azConfig := $azConfigs }}
@@ -96,6 +165,7 @@ spec:
 # Private Route Tables (one per AZ for NAT routing)
 {{- range $azConfig := $azConfigs }}
 {{- with $azConfig.privateRouteTable }}
+{{ $rtReady := get $resourceReadiness .resourceName | default false }}
 ---
 apiVersion: ec2.aws.upbound.io/v1beta1
 kind: RouteTable
@@ -112,12 +182,34 @@ spec:
   forProvider:
     region: {{ $awsRegion }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
       Name: {{ .name }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: VPC protects private route table
+{{- if and $vpcReady $rtReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-{{ .resourceName }}
+  annotations:
+    {{ setResourceNameAnnotation (printf "usage-vpc-%s" .resourceName) }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: RouteTable
+    resourceRef:
+      name: {{ .name }}
+{{- end }}
 {{- if $renderNatGateways }}
 {{- with $azConfig.nat }}
 ---
@@ -162,7 +254,7 @@ spec:
       name: {{ $azConfig.privateRouteTable.name }}
     destinationIpv6CidrBlock: "::/0"
     egressOnlyGatewayIdRef:
-      name: {{ $eigwName }}
+      name: {{ $networkName }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
 {{- end }}

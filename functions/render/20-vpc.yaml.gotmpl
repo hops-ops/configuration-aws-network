@@ -4,7 +4,7 @@
 apiVersion: ec2.aws.upbound.io/v1beta1
 kind: VPC
 metadata:
-  name: {{ $vpcName }}
+  name: {{ $networkName }}
   annotations:
     {{ setResourceNameAnnotation "vpc" }}
   labels:
@@ -48,7 +48,7 @@ spec:
     {{- end }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
-      Name: {{ $vpcName }}
+      Name: {{ $networkName }}
     {{- with $vpcForProvider }}
     {{ toYaml . | nindent 4 }}
     {{- end }}

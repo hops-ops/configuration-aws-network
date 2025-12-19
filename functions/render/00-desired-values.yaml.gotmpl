@@ -84,8 +84,7 @@
 {{ $flowLogsIamRoleArn := $flowLogsConfig.iamRoleArn | default "" }}
 {{ $flowLogsTrafficType := $flowLogsConfig.trafficType | default "ALL" }}
 
-# Resource naming
-{{ $vpcName := printf "%s-vpc" $networkName }}
-{{ $igwName := printf "%s-igw" $networkName }}
-{{ $eigwName := printf "%s-eigw" $networkName }}
-{{ $publicRouteTableName := printf "%s-public-rt" $networkName }}
+# Resource naming - avoid redundant suffixes when Kind already indicates type
+# VPC, IGW, EIGW are singular resources, so just use networkName
+# Route tables and subnets need suffixes for disambiguation (public vs private, per-AZ)
+{{ $publicRouteTableName := printf "%s-public" $networkName }}

@@ -44,5 +44,54 @@ spec:
       Name: {{ $natConfig.name }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usages: Protect NAT Gateway dependencies
+{{ $publicSubnetReady := get $resourceReadiness $natConfig.publicSubnetResourceName | default false }}
+{{ $natReady := get $resourceReadiness $natConfig.resourceName | default false }}
+{{ $eipReady := get $resourceReadiness $natConfig.eipResourceName | default false }}
+
+# Usage: Public subnet protects NAT Gateway
+{{- if and $publicSubnetReady $natReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-{{ $natConfig.publicSubnetResourceName }}-protects-{{ $natConfig.resourceName }}
+  annotations:
+    {{ setResourceNameAnnotation (printf "usage-%s-%s" $natConfig.publicSubnetResourceName $natConfig.resourceName) }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: Subnet
+    resourceRef:
+      name: {{ $natConfig.publicSubnet }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: NATGateway
+    resourceRef:
+      name: {{ $natConfig.name }}
+{{- end }}
+
+# Usage: EIP protects NAT Gateway
+{{- if and $eipReady $natReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-{{ $natConfig.eipResourceName }}-protects-{{ $natConfig.resourceName }}
+  annotations:
+    {{ setResourceNameAnnotation (printf "usage-%s-%s" $natConfig.eipResourceName $natConfig.resourceName) }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: EIP
+    resourceRef:
+      name: {{ $natConfig.eipName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: NATGateway
+    resourceRef:
+      name: {{ $natConfig.name }}
+{{- end }}
 {{- end }}
 {{- end }}

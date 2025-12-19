@@ -36,7 +36,7 @@ spec:
     region: {{ $awsRegion }}
     availabilityZone: {{ $azConfig.az }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     mapPublicIpOnLaunch: {{ .mapPublicIpOnLaunch }}
     cidrBlock: {{ $subnetCidr }}
     {{- if $hasIpv6 }}
@@ -47,6 +47,29 @@ spec:
       {{ .tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: VPC protects public subnet
+{{ $subnetReady := get $resourceReadiness .resourceName | default false }}
+{{- if and $vpcReady $subnetReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-{{ .resourceName }}
+  annotations:
+    {{ setResourceNameAnnotation (printf "usage-vpc-%s" .resourceName) }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: Subnet
+    resourceRef:
+      name: {{ .name }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -83,7 +106,7 @@ spec:
     region: {{ $awsRegion }}
     availabilityZone: {{ $azConfig.az }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     mapPublicIpOnLaunch: {{ .mapPublicIpOnLaunch }}
     cidrBlock: {{ $subnetCidr }}
     {{- if $hasIpv6 }}
@@ -94,6 +117,29 @@ spec:
       {{ .tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: VPC protects private subnet
+{{ $subnetReady := get $resourceReadiness .resourceName | default false }}
+{{- if and $vpcReady $subnetReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-{{ .resourceName }}
+  annotations:
+    {{ setResourceNameAnnotation (printf "usage-vpc-%s" .resourceName) }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: Subnet
+    resourceRef:
+      name: {{ .name }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

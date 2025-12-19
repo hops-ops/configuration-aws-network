@@ -16,7 +16,7 @@ spec:
     region: {{ $awsRegion }}
     transitGatewayId: {{ $tgwId }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     subnetIdsRefs:
     {{- range $azConfig := $azConfigs }}
     {{- with $azConfig.private }}

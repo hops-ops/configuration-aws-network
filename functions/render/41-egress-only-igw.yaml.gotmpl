@@ -5,7 +5,7 @@
 apiVersion: ec2.aws.upbound.io/v1beta1
 kind: EgressOnlyInternetGateway
 metadata:
-  name: {{ $eigwName }}
+  name: {{ $networkName }}
   annotations:
     {{ setResourceNameAnnotation "egress-only-igw" }}
   labels:
@@ -15,10 +15,32 @@ spec:
   forProvider:
     region: {{ $awsRegion }}
     vpcIdRef:
-      name: {{ $vpcName }}
+      name: {{ $networkName }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
-      Name: {{ $eigwName }}
+      Name: {{ $networkName }}
   providerConfigRef:
     name: {{ $awsProviderConfig }}
+
+# Usage: VPC protects Egress-Only IGW
+{{- if and $vpcReady $eigwReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-eigw
+  annotations:
+    {{ setResourceNameAnnotation "usage-vpc-eigw" }}
+spec:
+  of:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.upbound.io/v1beta1
+    kind: EgressOnlyInternetGateway
+    resourceRef:
+      name: {{ $networkName }}
+{{- end }}
 {{- end }}
