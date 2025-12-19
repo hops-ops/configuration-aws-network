@@ -40,10 +40,6 @@ spec:
     {{- if $ipv6IpamPoolRefName }}
     ipv6IpamPoolIdRef:
       name: {{ $ipv6IpamPoolRefName }}
-    {{- else if $ipv6IpamSelectorHasLabels }}
-    ipv6IpamPoolIdSelector:
-      matchLabels:
-        {{ $ipv6IpamPoolSelectorLabels | toYaml | nindent 8 }}
     {{- end }}
     {{- end }}
     tags:

@@ -17,7 +17,7 @@ spec:
     transitGatewayId: {{ $tgwId }}
     vpcIdRef:
       name: {{ $networkName }}
-    subnetIdsRefs:
+    subnetIdRefs:
     {{- range $azConfig := $azConfigs }}
     {{- with $azConfig.private }}
       - name: {{ .name }}
