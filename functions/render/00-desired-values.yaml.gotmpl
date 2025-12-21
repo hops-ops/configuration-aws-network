@@ -32,6 +32,8 @@
 {{ $subnets := $spec.subnets | default (dict) }}
 {{ $availabilityZones := $subnets.availabilityZones | default (list "a" "b" "c") }}
 {{ $netmaskLength := $subnets.netmaskLength | default 20 }}
+{{ $publicNetmaskLength := $subnets.publicNetmaskLength | default $netmaskLength }}
+{{ $privateNetmaskLength := $subnets.privateNetmaskLength | default $netmaskLength }}
 {{ $ipv6NetmaskLength := $subnets.ipv6NetmaskLength | default 64 }}
 {{ $subnetTypes := $subnets.types | default (list "public" "private") }}
 

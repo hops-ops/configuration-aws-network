@@ -1,9 +1,9 @@
-# E2E Test Configuration - Dual-stack with poolId
+# E2E Test Configuration - Dual-stack with IPAM poolIds
 # Mirrors the e2etest-network configuration for local testing
 #
 # Configuration:
 # - IPv4 via IPAM poolId (PRIVATE scope pool)
-# - IPv6 via Amazon-provided CIDR
+# - IPv6 via IPAM poolId (PRIVATE scope ULA pool)
 # - Dual-stack mode
 # - Public and private subnets
 # - On-demand subnet IPAM pool
@@ -25,13 +25,15 @@ spec:
         poolId: ipam-pool-0a82c73b97dc0dabb
     ipv6:
       enabled: true
-      amazonProvided: true
+      ipam:
+        poolId: ipam-pool-0decd6c5216660c74
     mode: dual-stack
   subnets:
     availabilityZones:
       - a
       - b
-    netmaskLength: 24
+    privateNetmaskLength: 24
+    publicNetmaskLength: 26
     types:
       - private
       - public

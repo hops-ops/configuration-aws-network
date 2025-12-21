@@ -63,8 +63,10 @@ Suffixes are appropriate when disambiguating multiple resources of the same kind
   aws_secret_access_key = <secret key>
   ```
 
-- **Persistent infrastructure**: The test uses IPAM pool `ipam-pool-0a82c73b97dc0dabb` (PRIVATE scope) for VPC IPv4 CIDR allocation.
-- **Test configuration**: Dual-stack (IPv4 IPAM + IPv6 Amazon-provided), public+private subnets, subnet IPAM enabled.
+- **Persistent infrastructure** (from aws-ipam e2e test):
+  - IPv4 pool: `ipam-pool-0a82c73b97dc0dabb` (PRIVATE scope, 10.0.0.0/8)
+  - IPv6 pool: `ipam-pool-0decd6c5216660c74` (PRIVATE scope ULA)
+- **Test configuration**: Dual-stack (IPv4 + IPv6 both via IPAM), public+private subnets, subnet IPAM enabled.
 - Run `make e2e` (or `up test run tests/e2etest-network --e2e`) to execute the suite.
 - The spec sets `skipDelete: false`, so resources are cleaned up automatically. Double-check for any leaked VPCs, subnets, or NAT gateways if the test aborts early.
 - Never commit the `aws-creds` file.

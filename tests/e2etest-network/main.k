@@ -13,8 +13,9 @@ _base64_creds = base64.encode(_creds)
 # Persistent infrastructure - update these if re-creating the test environment
 # =============================================================================
 
-# IPAM Pool - the parent pool for VPC CIDR allocation
-_ipam_pool_id = "ipam-pool-0a82c73b97dc0dabb"
+# IPAM Pools - persistent infrastructure from aws-ipam e2e test
+_ipv4_private_pool_id = "ipam-pool-0a82c73b97dc0dabb"
+_ipv6_private_pool_id = "ipam-pool-0decd6c5216660c74"
 
 # =============================================================================
 # Dynamic test resources - timestamped to allow concurrent test runs
@@ -50,19 +51,21 @@ _items = [
                         cidr: {
                             ipv4: {
                                 ipam: {
-                                    # Reference the persistent PRIVATE scope IPAM pool by ID
-                                    poolId: _ipam_pool_id
+                                    poolId: _ipv4_private_pool_id
                                 }
                             }
                             ipv6: {
                                 enabled: True
-                                amazonProvided: True
+                                ipam: {
+                                    poolId: _ipv6_private_pool_id
+                                }
                             }
                             mode: "dual-stack"
                         }
                         subnets: {
                             availabilityZones: ["a", "b"]
-                            netmaskLength: 24
+                            privateNetmaskLength: 24
+                            publicNetmaskLength: 26
                             types: ["private", "public"]
                             ipam: {
                                 enabled: True

@@ -33,7 +33,7 @@
       "tags" $publicTags
       "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $suffix)
       "mapPublicIpOnLaunch" true
-      "netmaskLength" $netmaskLength
+      "netmaskLength" $publicNetmaskLength
       "ipv6NetmaskLength" $ipv6NetmaskLength
     ) }}
   {{ end }}
@@ -53,7 +53,7 @@
       "tags" $privateTags
       "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $suffix)
       "mapPublicIpOnLaunch" false
-      "netmaskLength" $netmaskLength
+      "netmaskLength" $privateNetmaskLength
       "ipv6NetmaskLength" $ipv6NetmaskLength
     ) }}
   {{ end }}

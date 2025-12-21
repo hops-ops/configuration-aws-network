@@ -6,16 +6,8 @@ spec:
   dependsOn:
   - apiVersion: pkg.crossplane.io/v1
     kind: Provider
-    package: xpkg.upbound.io/crossplane-contrib/provider-family-aws
-    version: '>=v2.2.0'
-  - apiVersion: pkg.crossplane.io/v1
-    kind: Provider
     package: xpkg.upbound.io/crossplane-contrib/provider-aws-ec2
     version: '>=v2.2.0'
-  - apiVersion: pkg.crossplane.io/v1
-    kind: Function
-    package: xpkg.upbound.io/crossplane-contrib/function-go-templating
-    version: '>=v0.10.0'
   - apiVersion: pkg.crossplane.io/v1
     kind: Function
     package: xpkg.upbound.io/crossplane-contrib/function-auto-ready

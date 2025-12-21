@@ -212,10 +212,20 @@ spec:
                     - c
                   netmaskLength:
                     type: integer
-                    description: Netmask length for each subnet.
+                    description: Default netmask length for subnets (used if type-specific not set).
                     minimum: 16
                     maximum: 28
                     default: 20
+                  publicNetmaskLength:
+                    type: integer
+                    description: Netmask length for public subnets (overrides netmaskLength).
+                    minimum: 16
+                    maximum: 28
+                  privateNetmaskLength:
+                    type: integer
+                    description: Netmask length for private subnets (overrides netmaskLength).
+                    minimum: 16
+                    maximum: 28
                   ipv6NetmaskLength:
                     type: integer
                     description: IPv6 netmask length for each subnet (default /64).
