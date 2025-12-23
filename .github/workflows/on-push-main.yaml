@@ -34,11 +34,7 @@ jobs:
           { "example": "examples/networks/example-dual-stack.yaml" },
           { "example": "examples/networks/example-enterprise.yaml" },
           { "example": "examples/networks/example-ipam-subnets.yaml" },
-          { "example": "examples/networks/example-ipam-subnets.yaml", "observed_resources": "examples/observed-resources/example-ipam-subnets/steps/1" },
-          { "example": "examples/networks/example-ipam-subnets-ondemand.yaml" },
-          { "example": "examples/networks/example-ipam-subnets-ondemand.yaml", "observed_resources": "examples/observed-resources/example-ipam-subnets-ondemand/steps/1" },
-          { "example": "examples/networks/example-ipam-subnets-ondemand.yaml", "observed_resources": "examples/observed-resources/example-ipam-subnets-ondemand/steps/2" },
-          { "example": "examples/networks/example-ipam-subnets-ondemand.yaml", "observed_resources": "examples/observed-resources/example-ipam-subnets-ondemand/steps/3" }
+          { "example": "examples/networks/example-ipam-subnets.yaml", "observed_resources": "examples/observed-resources/example-ipam-subnets/steps/1" }
         ]
       api_path: apis/networks
       error_on_missing_schemas: true

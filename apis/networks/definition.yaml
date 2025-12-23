@@ -216,6 +216,27 @@ spec:
                               Valid values: 44-60 in increments of 4.
                             minimum: 44
                             maximum: 60
+                          subnetPool:
+                            type: object
+                            description: |
+                              Subnet CIDR allocation from IPv6 IPAM pool. When enabled, allocates
+                              subnet CIDRs from a dedicated subnet pool instead of calculating
+                              from VPC CIDR.
+                            properties:
+                              enabled:
+                                type: boolean
+                                description: Enable subnet CIDR allocation from IPv6 IPAM pool.
+                                default: false
+                              poolId:
+                                type: string
+                                description: |
+                                  Direct IPv6 IPAM pool ID for subnet allocations.
+                              netmaskLength:
+                                type: integer
+                                description: |
+                                  Netmask length for IPv6 subnet CIDR allocations.
+                                minimum: 44
+                                maximum: 64
                   mode:
                     type: string
                     description: Address mode for subnets.
