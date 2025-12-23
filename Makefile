@@ -4,22 +4,22 @@ PACKAGE ?= configuration-aws-network
 XRD_DIR := apis/networks
 COMPOSITION := $(XRD_DIR)/composition.yaml
 DEFINITION := $(XRD_DIR)/definition.yaml
-EXAMPLE_DEFAULT := examples/networks/example-minimal.yaml
+EXAMPLE_DEFAULT := examples/networks/minimal.yaml
 RENDER_TESTS := $(wildcard tests/test-*)
 E2E_TESTS := $(wildcard tests/e2etest-*)
 
 # Examples list - mirrors GitHub Actions workflow
 # Format: example_path::observed_resources_path (observed_resources_path is optional)
 EXAMPLES := \
-    examples/networks/example-minimal.yaml:: \
-    examples/networks/example-minimal.yaml::examples/observed-resources/example-minimal/steps/1 \
-    examples/networks/example-dual-stack.yaml:: \
-    examples/networks/example-e2e.yaml:: \
-    examples/networks/example-enterprise.yaml:: \
-    examples/networks/example-manual-cidr.yaml:: \
-    examples/networks/example-private-only.yaml:: \
-    examples/networks/example-ipam-subnets.yaml:: \
-    examples/networks/example-ipam-subnets.yaml::examples/observed-resources/example-ipam-subnets/steps/1
+    examples/networks/minimal.yaml:: \
+    examples/networks/minimal.yaml::examples/test/mocks/observed-resources/minimal/steps/1 \
+    examples/networks/dual-stack.yaml:: \
+    examples/networks/e2e.yaml:: \
+    examples/networks/enterprise.yaml:: \
+    examples/networks/manual-cidr.yaml:: \
+    examples/networks/private-only.yaml:: \
+    examples/networks/ipam-subnets.yaml:: \
+    examples/networks/ipam-subnets.yaml::examples/test/mocks/observed-resources/ipam-subnets/steps/1
 
 .PHONY: clean build render validate test e2e publish generate-definitions generate-function
 

@@ -30,14 +30,14 @@ jobs:
     with:
       examples: |
         [
-          { "example": "examples/networks/example-minimal.yaml" },
-          { "example": "examples/networks/example-minimal.yaml", "observed_resources": "examples/observed-resources/example-minimal/steps/1" },
-          { "example": "examples/networks/example-private-only.yaml" },
-          { "example": "examples/networks/example-manual-cidr.yaml" },
-          { "example": "examples/networks/example-dual-stack.yaml" },
-          { "example": "examples/networks/example-enterprise.yaml" },
-          { "example": "examples/networks/example-ipam-subnets.yaml" },
-          { "example": "examples/networks/example-ipam-subnets.yaml", "observed_resources": "examples/observed-resources/example-ipam-subnets/steps/1" }
+          { "example": "examples/networks/minimal.yaml" },
+          { "example": "examples/networks/minimal.yaml", "observed_resources": "examples/test/mocks/observed-resources/minimal/steps/1" },
+          { "example": "examples/networks/private-only.yaml" },
+          { "example": "examples/networks/manual-cidr.yaml" },
+          { "example": "examples/networks/dual-stack.yaml" },
+          { "example": "examples/networks/enterprise.yaml" },
+          { "example": "examples/networks/ipam-subnets.yaml" },
+          { "example": "examples/networks/ipam-subnets.yaml", "observed_resources": "examples/test/mocks/observed-resources/ipam-subnets/steps/1" }
         ]
       api_path: apis/networks
       error_on_missing_schemas: true
@@ -53,7 +53,7 @@ jobs:
     with:
       aws: true
       timeout-minutes: 30
-      debug-example-path: examples/networks/example-minimal.yaml
+      debug-example-path: examples/networks/minimal.yaml
       debug-resource-types: |
         [
           "networks.aws.hops.ops.com.ai"
