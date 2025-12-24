@@ -1,5 +1,17 @@
 # code: language=yaml
 
+# Per-network pool names (used when subnetPool.enabled)
+{{- $perNetworkPoolName := printf "%s-pool" $networkName }}
+{{- $ipv6PerNetworkPoolName := printf "%s-ipv6-pool" $networkName }}
+
+# Determine if we should wait for per-network pool to be ready
+# When using subnet pool mode, VPC must wait for the per-network pool CIDR
+{{- $canCreateVpc := true }}
+{{- if and $useSubnetPool $useIpv4Ipam }}
+  {{- $canCreateVpc = $perNetworkPoolCidrReady }}
+{{- end }}
+
+{{- if $canCreateVpc }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPC
@@ -16,6 +28,12 @@ spec:
     enableDnsHostnames: {{ $enableDnsHostnames }}
     enableDnsSupport: {{ $enableDnsSupport }}
     {{- if $useIpv4Ipam }}
+    {{- if and $useSubnetPool $perNetworkPoolCidrReady }}
+    {{- /* Use per-network pool when subnet pool mode is enabled */}}
+    ipv4IpamPoolIdRef:
+      name: {{ $perNetworkPoolName }}
+    {{- else }}
+    {{- /* Use parent pool directly when not using subnet pool mode */}}
     {{- if $ipv4IpamNetmaskLength }}
     ipv4NetmaskLength: {{ $ipv4IpamNetmaskLength }}
     {{- end }}
@@ -31,6 +49,7 @@ spec:
       matchLabels:
         {{ $ipv4IpamPoolSelectorLabels | toYaml | nindent 8 }}
     {{- end }}
+    {{- end }}
     {{- else if $useIpv4Manual }}
     cidrBlock: {{ $manualVpcCidr }}
     {{- end }}
@@ -38,11 +57,17 @@ spec:
     assignGeneratedIpv6CidrBlock: true
     {{- else if $useIpv6Ipam }}
     {{- /* Note: AWS VPC only supports ipv6IpamPoolId - no ref/selector variants */}}
+    {{- if and $useIpv6SubnetPool $ipv6PerNetworkPoolCidrReady }}
+    {{- /* Use per-network IPv6 pool when subnet pool mode is enabled */}}
+    ipv6IpamPoolIdRef:
+      name: {{ $ipv6PerNetworkPoolName }}
+    {{- else }}
     {{- if $ipv6IpamNetmaskLength }}
     ipv6NetmaskLength: {{ $ipv6IpamNetmaskLength }}
     {{- end }}
     {{- if $ipv6IpamPoolId }}
     ipv6IpamPoolId: {{ $ipv6IpamPoolId }}
+    {{- end }}
     {{- end }}
     {{- end }}
     tags:
@@ -54,3 +79,4 @@ spec:
   providerConfigRef:
     kind: ProviderConfig
     name: {{ $awsProviderConfig }}
+{{- end }}

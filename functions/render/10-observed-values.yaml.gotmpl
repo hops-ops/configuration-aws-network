@@ -120,6 +120,26 @@
 {{ $observedTgwAttachmentId := $tgwAttachAtProvider.id | default "" }}
 {{ $observedTgwAttachmentState := $tgwAttachAtProvider.state | default "" }}
 
+# Extract per-network IPAM pool observed values
+{{ $perNetworkPoolEntry := get $observed "per-network-pool" | default (dict) }}
+{{ $perNetworkPoolResource := $perNetworkPoolEntry.resource | default (dict) }}
+{{ $perNetworkPoolStatus := $perNetworkPoolResource.status | default (dict) }}
+{{ $perNetworkPoolAtProvider := $perNetworkPoolStatus.atProvider | default (dict) }}
+{{ $observedPerNetworkPoolId := $perNetworkPoolAtProvider.id | default "" }}
+{{ $perNetworkPoolReady := get $resourceReadiness "per-network-pool" | default false }}
+
+# Extract per-network pool CIDR observed values
+{{ $perNetworkPoolCidrReady := get $resourceReadiness "per-network-pool-cidr" | default false }}
+
+# Extract per-network IPv6 pool observed values
+{{ $ipv6PerNetworkPoolEntry := get $observed "per-network-ipv6-pool" | default (dict) }}
+{{ $ipv6PerNetworkPoolResource := $ipv6PerNetworkPoolEntry.resource | default (dict) }}
+{{ $ipv6PerNetworkPoolStatus := $ipv6PerNetworkPoolResource.status | default (dict) }}
+{{ $ipv6PerNetworkPoolAtProvider := $ipv6PerNetworkPoolStatus.atProvider | default (dict) }}
+{{ $observedIpv6PerNetworkPoolId := $ipv6PerNetworkPoolAtProvider.id | default "" }}
+{{ $ipv6PerNetworkPoolReady := get $resourceReadiness "per-network-ipv6-pool" | default false }}
+{{ $ipv6PerNetworkPoolCidrReady := get $resourceReadiness "per-network-ipv6-pool-cidr" | default false }}
+
 # Subnet CIDR allocation: either from IPAM allocations or calculated from VPC CIDR
 {{ $allocatedSubnetCidrs := dict }}
 {{ $subnetCidrAllocationsReady := dict }}

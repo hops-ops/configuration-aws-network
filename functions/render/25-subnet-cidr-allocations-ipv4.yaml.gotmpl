@@ -1,52 +1,27 @@
 # code: language=yaml
 
-# IPv4 IPAM Subnet Pool CIDR Provisioning and Allocation
-# =======================================================
-# This file handles two distinct operations:
-# 1. VPCIpamPoolCidr - Provisions CIDR space TO the subnet pool (from parent pool)
-# 2. VPCIpamPoolCidrAllocation - Allocates CIDRs FROM the subnet pool (for subnets)
+# IPv4 Subnet CIDR Allocations
+# ============================
+# Allocates subnet CIDRs from the per-network IPAM pool.
+# The per-network pool and its CIDR are created in 21-per-network-ipam-pool.yaml.gotmpl.
+# VPC uses the per-network pool (created in 20-vpc.yaml.gotmpl).
 #
-# The VPCIpamPoolCidr must be Ready before allocations can succeed.
+# Flow:
+# 1. Per-network pool created (21-*.yaml.gotmpl)
+# 2. Pool CIDR provisioned to per-network pool
+# 3. VPC created using per-network pool (gets CIDR from pool)
+# 4. Subnet allocations created (this file) - allocate from same per-network pool
+# 5. Subnets created using allocated CIDRs
 
-{{- $ipv4PoolCidrNetmaskLength := $ipv4SubnetPool.poolCidrNetmaskLength }}
-{{- $ipv4PoolCidrReady := get $resourceReadiness "ipv4-subnet-pool-cidr" | default false }}
+{{- $perNetworkPoolName := printf "%s-pool" $networkName }}
 
-{{- if and $useSubnetPool (or $subnetPoolId $subnetPoolName) }}
-
-# Provision CIDR to the IPv4 subnet pool (carves space from parent pool)
-{{- if $subnetPoolId }}
----
-apiVersion: ec2.aws.m.upbound.io/v1beta1
-kind: VPCIpamPoolCidr
-metadata:
-  name: {{ $networkName }}-ipv4-subnet-pool-cidr
-  annotations:
-    {{ setResourceNameAnnotation "ipv4-subnet-pool-cidr" }}
-  labels:
-    hops.ops.com.ai/network: {{ $networkName }}
-    hops.ops.com.ai/address-family: ipv4
-spec:
-  managementPolicies: {{ $managementPolicies | toJson }}
-  forProvider:
-    region: {{ $awsRegion }}
-    ipamPoolId: {{ $subnetPoolId }}
-    {{- if $ipv4PoolCidrNetmaskLength }}
-    netmaskLength: {{ $ipv4PoolCidrNetmaskLength }}
-    {{- else }}
-    # Default: provision enough for 8 subnets (4 AZs × 2 types) at the allocation netmask
-    # E.g., if allocating /24s, provision /21 (8 × /24 = /21)
-    netmaskLength: {{ sub ($subnetPoolNetmaskLength | default $netmaskLength) 3 }}
-    {{- end }}
-  providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
-{{- end }}
+{{- if and $useSubnetPool $useIpv4Ipam }}
 
 # Determine netmask length for subnet allocations
 {{- $allocNetmaskLength := $subnetPoolNetmaskLength | default $netmaskLength }}
 
-# Only create allocations once the pool CIDR is provisioned and ready
-{{- if $ipv4PoolCidrReady }}
+# Only create allocations once VPC is ready (pool has CIDR allocated to VPC)
+{{- if $vpcReady }}
 
 # Public subnet CIDR allocations (IPv4)
 {{- range $azConfig := $azConfigs }}
@@ -68,13 +43,8 @@ spec:
     region: {{ $awsRegion }}
     netmaskLength: {{ $allocNetmaskLength }}
     description: "Subnet CIDR for {{ .name }}"
-    {{- if $subnetPoolId }}
-    ipamPoolId: {{ $subnetPoolId }}
-    {{- else }}
-    ipamPoolIdSelector:
-      matchLabels:
-        hops.ops.com.ai/global-pool: {{ $subnetPoolName }}
-    {{- end }}
+    ipamPoolIdRef:
+      name: {{ $perNetworkPoolName }}
   providerConfigRef:
     kind: ProviderConfig
     name: {{ $awsProviderConfig }}
@@ -101,23 +71,17 @@ spec:
     region: {{ $awsRegion }}
     netmaskLength: {{ $allocNetmaskLength }}
     description: "Subnet CIDR for {{ .name }}"
-    {{- if $subnetPoolId }}
-    ipamPoolId: {{ $subnetPoolId }}
-    {{- else }}
-    ipamPoolIdSelector:
-      matchLabels:
-        hops.ops.com.ai/global-pool: {{ $subnetPoolName }}
-    {{- end }}
+    ipamPoolIdRef:
+      name: {{ $perNetworkPoolName }}
   providerConfigRef:
     kind: ProviderConfig
     name: {{ $awsProviderConfig }}
 {{- end }}
 {{- end }}
 
-{{- end }}{{/* end ipv4PoolCidrReady */}}
+{{- end }}{{/* end vpcReady */}}
 
-# Usage: Protect pool CIDR from deletion while allocations exist
-{{- if $ipv4PoolCidrReady }}
+# Usage: Protect per-network pool CIDR from deletion while allocations exist
 {{- $hasReadyIpv4Allocations := false }}
 {{- range $azConfig := $azConfigs }}
   {{- with $azConfig.public }}
@@ -134,23 +98,22 @@ spec:
   {{- end }}
 {{- end }}
 
-{{- if $hasReadyIpv4Allocations }}
+{{- if and $perNetworkPoolCidrReady $hasReadyIpv4Allocations }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $networkName }}-ipv4-pool-cidr-protects-allocations
+  name: {{ $networkName }}-pool-cidr-protects-allocations
   annotations:
-    {{ setResourceNameAnnotation "usage-ipv4-pool-cidr" }}
+    {{ setResourceNameAnnotation "usage-pool-cidr" }}
 spec:
   replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: VPCIpamPoolCidr
     resourceRef:
-      name: {{ $networkName }}-ipv4-subnet-pool-cidr
+      name: {{ $networkName }}-pool-cidr
   reason: "IPv4 subnet CIDR allocations depend on this pool CIDR"
 {{- end }}
-{{- end }}
 
-{{- end }}{{/* end useSubnetPool */}}
+{{- end }}{{/* end useSubnetPool && useIpv4Ipam */}}
