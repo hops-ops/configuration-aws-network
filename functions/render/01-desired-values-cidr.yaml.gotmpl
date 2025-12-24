@@ -68,6 +68,16 @@
   {{ end }}
 {{ end }}
 
+# IPv6 Subnet pool configuration (from cidr.ipv6.ipam.subnetPool)
+{{ $ipv6SubnetPool := $ipv6Ipam.subnetPool | default (dict) }}
+{{ $useIpv6SubnetPool := $ipv6SubnetPool.enabled | default false }}
+{{ $ipv6SubnetPoolNetmaskLength := $ipv6SubnetPool.netmaskLength }}
+{{ $ipv6SubnetPoolId := $ipv6SubnetPool.poolId | default "" }}
+{{ $ipv6SubnetPoolName := "" }}
+{{ if and $useIpv6SubnetPool (not $ipv6SubnetPoolId) $ipv6IpamGlobalPoolName }}
+  {{ $ipv6SubnetPoolName = printf "%s-subnets" $ipv6IpamGlobalPoolName }}
+{{ end }}
+
 # Update address mode based on IPv6
 {{ if $ipv6Enabled }}
   {{ if eq $cidrMode "ipv4-only" }}
