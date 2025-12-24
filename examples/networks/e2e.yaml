@@ -1,4 +1,4 @@
-# E2E Test Configuration - Dual-stack with IPAM poolIds
+# E2E Test Configuration - Dual-stack with IPAM and per-network pools
 # Mirrors the e2etest-network configuration for local testing
 #
 # Configuration:
@@ -6,7 +6,7 @@
 # - IPv6 via IPAM poolId (PRIVATE scope ULA pool)
 # - Dual-stack mode
 # - Public and private subnets
-# - Subnet CIDRs from IPAM subnet pool
+# - Per-network child pools created automatically for subnet allocations
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: Network
 metadata:
@@ -23,17 +23,17 @@ spec:
     ipv4:
       ipam:
         poolId: ipam-pool-0a82c73b97dc0dabb
+        # Per-network child pool created automatically
         subnetPool:
           enabled: true
-          poolId: ipam-pool-0eac78aa2a229f757
           netmaskLength: 24
     ipv6:
       enabled: true
       ipam:
         poolId: ipam-pool-0decd6c5216660c74
+        # Per-network child pool created automatically
         subnetPool:
           enabled: true
-          poolId: ipam-pool-0888a212e86abbf13
           netmaskLength: 64
     mode: dual-stack
   subnets:
