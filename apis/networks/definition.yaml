@@ -26,13 +26,6 @@ spec:
               clusterName:
                 type: string
                 description: Optional identifier used as default for providerConfig selection.
-              deletionPolicy:
-                type: string
-                description: Delete or Orphan composed resources when the XR is deleted.
-                enum:
-                - Delete
-                - Orphan
-                default: Delete
               managementPolicies:
                 type: array
                 description: Management operations permitted on composed resources.

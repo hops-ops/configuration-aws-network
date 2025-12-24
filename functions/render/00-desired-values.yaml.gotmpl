@@ -7,7 +7,6 @@
 # Core identification
 {{ $networkName := $metadata.name | default "network" }}
 {{ $clusterName := $spec.clusterName | default $networkName }}
-{{ $deletionPolicy := $spec.deletionPolicy | default "Delete" }}
 {{ $managementPolicies := $spec.managementPolicies | default (list "*") }}
 
 # AWS configuration
