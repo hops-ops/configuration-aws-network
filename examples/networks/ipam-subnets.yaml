@@ -3,10 +3,13 @@
 # instead of being calculated from VPC CIDR
 #
 # Prerequisites:
-# 1. IPAM with VPC pool (globalPoolName: sandbox)
-# 2. IPAM with subnet pool (globalPoolName: sandbox-subnets)
+# 1. IPAM with VPC pool (poolId for VPC CIDR allocation)
+# 2. IPAM with subnet pool (subnetPool.poolId for subnet allocations)
 #    - Created by aws-ipam module with convention: ${globalPoolName}-subnets
-#    - allocationDefaultNetmaskLength should match subnetPool.netmaskLength
+#
+# How it works:
+# 1. Network creates VPCIpamPoolCidr to provision space TO the subnet pool
+# 2. Once that's Ready, Network creates VPCIpamPoolCidrAllocation for each subnet
 #
 # Benefits:
 # - Stricter central control over subnet CIDR assignments
@@ -26,11 +29,15 @@ spec:
     ipv4:
       ipam:
         # VPC CIDR from this pool (e.g., gets a /16)
-        globalPoolName: sandbox
-        # Subnet CIDRs from sandbox-subnets pool (convention: ${globalPoolName}-subnets)
+        poolId: ipam-pool-0abc123def456
+        # Subnet CIDRs from subnet pool
         subnetPool:
           enabled: true
+          poolId: ipam-pool-0subnet123456
           netmaskLength: 24
+          # Optional: explicitly set how much space to provision to the pool
+          # Default is calculated as (netmaskLength - 3) to fit 8 subnets
+          # poolCidrNetmaskLength: 21
     mode: ipv4-only
   subnets:
     availabilityZones:
