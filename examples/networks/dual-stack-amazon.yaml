@@ -1,0 +1,36 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: dual-stack-amazon
+  namespace: infra
+spec:
+  aws:
+    providerConfig: default
+    config:
+      region: us-east-1
+
+  vpc:
+    cidr: "10.4.0.0/16"
+    ipv6:
+      amazonProvided:
+        enabled: true
+
+  subnets:
+    - name: dual-stack-amazon-public-a
+      cidr: "10.4.0.0/24"
+      availabilityZone: a
+      public: true
+    - name: dual-stack-amazon-public-b
+      cidr: "10.4.1.0/24"
+      availabilityZone: b
+      public: true
+    - name: dual-stack-amazon-private-a
+      cidr: "10.4.16.0/20"
+      availabilityZone: a
+    - name: dual-stack-amazon-private-b
+      cidr: "10.4.32.0/20"
+      availabilityZone: b
+
+  nat:
+    enabled: true
+    strategy: SingleAz

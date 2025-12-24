@@ -1,0 +1,17 @@
+# VPCIpamPoolCidr - Provisions space TO the subnet pool (from parent pool)
+# This must be Ready before VPCIpamPoolCidrAllocations can be created
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPoolCidr
+metadata:
+  name: ipam-subnets-demo-ipv4-subnet-pool-cidr
+  annotations:
+    gotemplating.fn.crossplane.io/composition-resource-name: "ipv4-subnet-pool-cidr"
+    crossplane.io/composition-resource-name: "ipv4-subnet-pool-cidr"
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+  atProvider:
+    id: ipam-pool-cidr-0abc123
+    cidr: "10.50.0.0/21"
+    ipamPoolId: ipam-pool-0subnet123456

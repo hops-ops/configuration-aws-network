@@ -1,15 +1,68 @@
 # code: language=yaml
 
-# VPCIpamPoolCidrAllocation resources for IPAM-managed subnet CIDR allocation
-# Only rendered when cidr.ipv4.ipam.subnetPool.enabled is true
-# Pool selection: poolId takes precedence, otherwise uses ${globalPoolName}-subnets convention
+# IPAM Subnet Pool CIDR Provisioning and Allocation
+# ==================================================
+# This file handles two distinct operations:
+# 1. VPCIpamPoolCidr - Provisions CIDR space TO the subnet pool (from parent pool)
+# 2. VPCIpamPoolCidrAllocation - Allocates CIDRs FROM the subnet pool (for subnets)
+#
+# The VPCIpamPoolCidr must be Ready before allocations can succeed.
+
+# =============================================================================
+# IPv4 Subnet Pool CIDR Provisioning
+# =============================================================================
+{{- $ipv4PoolCidrNetmaskLength := $ipv4SubnetPool.poolCidrNetmaskLength }}
+{{- $ipv4PoolCidrReady := false }}
 
 {{- if and $useSubnetPool (or $subnetPoolId $subnetPoolName) }}
 
-# Determine netmask length for allocations
+# Provision CIDR to the IPv4 subnet pool (carves space from parent pool)
+{{- if $subnetPoolId }}
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPoolCidr
+metadata:
+  name: {{ $networkName }}-ipv4-subnet-pool-cidr
+  annotations:
+    {{ setResourceNameAnnotation "ipv4-subnet-pool-cidr" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+    hops.ops.com.ai/address-family: ipv4
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    ipamPoolId: {{ $subnetPoolId }}
+    {{- if $ipv4PoolCidrNetmaskLength }}
+    netmaskLength: {{ $ipv4PoolCidrNetmaskLength }}
+    {{- else }}
+    # Default: provision enough for 8 subnets (4 AZs × 2 types) at the allocation netmask
+    # E.g., if allocating /24s, provision /21 (8 × /24 = /21)
+    netmaskLength: {{ sub ($subnetPoolNetmaskLength | default $netmaskLength) 3 }}
+    {{- end }}
+  providerConfigRef:
+    kind: ProviderConfig
+    name: {{ $awsProviderConfig }}
+{{- end }}
+
+# Check if the pool CIDR is ready (for gating allocations)
+{{- $ipv4PoolCidrEntry := get $observed "ipv4-subnet-pool-cidr" | default (dict) }}
+{{- $ipv4PoolCidrResource := $ipv4PoolCidrEntry.resource | default (dict) }}
+{{- $ipv4PoolCidrStatus := $ipv4PoolCidrResource.status | default (dict) }}
+{{- $ipv4PoolCidrConditions := $ipv4PoolCidrStatus.conditions | default (list) }}
+{{- range $ipv4PoolCidrConditions }}
+  {{- if and (eq (get . "type") "Ready") (eq (get . "status") "True") }}
+    {{- $ipv4PoolCidrReady = true }}
+  {{- end }}
+{{- end }}
+
+# Determine netmask length for subnet allocations
 {{- $allocNetmaskLength := $subnetPoolNetmaskLength | default $netmaskLength }}
 
-# Public subnet CIDR allocations
+# Only create allocations once the pool CIDR is provisioned and ready
+{{- if $ipv4PoolCidrReady }}
+
+# Public subnet CIDR allocations (IPv4)
 {{- range $azConfig := $azConfigs }}
 {{- with $azConfig.public }}
 ---
@@ -42,7 +95,7 @@ spec:
 {{- end }}
 {{- end }}
 
-# Private subnet CIDR allocations
+# Private subnet CIDR allocations (IPv4)
 {{- range $azConfig := $azConfigs }}
 {{- with $azConfig.private }}
 ---
@@ -75,4 +128,205 @@ spec:
 {{- end }}
 {{- end }}
 
+{{- end }}{{/* end ipv4PoolCidrReady */}}
+{{- end }}{{/* end useSubnetPool */}}
+
+# =============================================================================
+# IPv6 Subnet Pool CIDR Provisioning
+# =============================================================================
+{{- $ipv6PoolCidrNetmaskLength := $ipv6SubnetPool.poolCidrNetmaskLength }}
+{{- $ipv6PoolCidrReady := false }}
+
+{{- if and $useIpv6SubnetPool (or $ipv6SubnetPoolId $ipv6SubnetPoolName) }}
+
+# Provision CIDR to the IPv6 subnet pool (carves space from parent pool)
+{{- if $ipv6SubnetPoolId }}
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPoolCidr
+metadata:
+  name: {{ $networkName }}-ipv6-subnet-pool-cidr
+  annotations:
+    {{ setResourceNameAnnotation "ipv6-subnet-pool-cidr" }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+    hops.ops.com.ai/address-family: ipv6
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    ipamPoolId: {{ $ipv6SubnetPoolId }}
+    {{- if $ipv6PoolCidrNetmaskLength }}
+    netmaskLength: {{ $ipv6PoolCidrNetmaskLength }}
+    {{- else }}
+    # Default: provision /60 which gives 16 × /64 subnets
+    netmaskLength: {{ $ipv6SubnetPoolNetmaskLength | default $ipv6NetmaskLength | default 64 | add -4 }}
+    {{- end }}
+  providerConfigRef:
+    kind: ProviderConfig
+    name: {{ $awsProviderConfig }}
+{{- end }}
+
+# Check if the IPv6 pool CIDR is ready (for gating allocations)
+{{- $ipv6PoolCidrEntry := get $observed "ipv6-subnet-pool-cidr" | default (dict) }}
+{{- $ipv6PoolCidrResource := $ipv6PoolCidrEntry.resource | default (dict) }}
+{{- $ipv6PoolCidrStatus := $ipv6PoolCidrResource.status | default (dict) }}
+{{- $ipv6PoolCidrConditions := $ipv6PoolCidrStatus.conditions | default (list) }}
+{{- range $ipv6PoolCidrConditions }}
+  {{- if and (eq (get . "type") "Ready") (eq (get . "status") "True") }}
+    {{- $ipv6PoolCidrReady = true }}
+  {{- end }}
+{{- end }}
+
+# Determine netmask length for IPv6 subnet allocations
+{{- $ipv6AllocNetmaskLength := $ipv6SubnetPoolNetmaskLength | default $ipv6NetmaskLength }}
+
+# Only create IPv6 allocations once the pool CIDR is provisioned and ready
+{{- if $ipv6PoolCidrReady }}
+
+# Public subnet CIDR allocations (IPv6)
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.public }}
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPoolCidrAllocation
+metadata:
+  name: {{ .name }}-ipv6-cidr
+  annotations:
+    {{ setResourceNameAnnotation (printf "cidr-alloc-ipv6-%s" .resourceName) }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+    hops.ops.com.ai/tier: public
+    hops.ops.com.ai/az: {{ $azConfig.suffix }}
+    hops.ops.com.ai/address-family: ipv6
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    netmaskLength: {{ $ipv6AllocNetmaskLength }}
+    description: "IPv6 Subnet CIDR for {{ .name }}"
+    {{- if $ipv6SubnetPoolId }}
+    ipamPoolId: {{ $ipv6SubnetPoolId }}
+    {{- else }}
+    ipamPoolIdSelector:
+      matchLabels:
+        hops.ops.com.ai/global-pool: {{ $ipv6SubnetPoolName }}
+    {{- end }}
+  providerConfigRef:
+    kind: ProviderConfig
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}
+
+# Private subnet CIDR allocations (IPv6)
+{{- range $azConfig := $azConfigs }}
+{{- with $azConfig.private }}
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPoolCidrAllocation
+metadata:
+  name: {{ .name }}-ipv6-cidr
+  annotations:
+    {{ setResourceNameAnnotation (printf "cidr-alloc-ipv6-%s" .resourceName) }}
+  labels:
+    hops.ops.com.ai/network: {{ $networkName }}
+    hops.ops.com.ai/tier: private
+    hops.ops.com.ai/az: {{ $azConfig.suffix }}
+    hops.ops.com.ai/address-family: ipv6
+spec:
+  managementPolicies: {{ $managementPolicies | toJson }}
+  forProvider:
+    region: {{ $awsRegion }}
+    netmaskLength: {{ $ipv6AllocNetmaskLength }}
+    description: "IPv6 Subnet CIDR for {{ .name }}"
+    {{- if $ipv6SubnetPoolId }}
+    ipamPoolId: {{ $ipv6SubnetPoolId }}
+    {{- else }}
+    ipamPoolIdSelector:
+      matchLabels:
+        hops.ops.com.ai/global-pool: {{ $ipv6SubnetPoolName }}
+    {{- end }}
+  providerConfigRef:
+    kind: ProviderConfig
+    name: {{ $awsProviderConfig }}
+{{- end }}
+{{- end }}
+
+{{- end }}{{/* end ipv6PoolCidrReady */}}
+{{- end }}{{/* end useIpv6SubnetPool */}}
+
+# =============================================================================
+# Usage Resources - Protect pool CIDRs from deletion while allocations exist
+# =============================================================================
+
+{{- if and $useSubnetPool $subnetPoolId $ipv4PoolCidrReady }}
+# Check if any IPv4 allocations are ready
+{{- $hasReadyIpv4Allocations := false }}
+{{- range $azConfig := $azConfigs }}
+  {{- with $azConfig.public }}
+    {{- if get $subnetCidrAllocationsReady .resourceName }}
+      {{- $hasReadyIpv4Allocations = true }}
+    {{- end }}
+  {{- end }}
+  {{- with $azConfig.private }}
+    {{- if get $subnetCidrAllocationsReady .resourceName }}
+      {{- $hasReadyIpv4Allocations = true }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if $hasReadyIpv4Allocations }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-ipv4-pool-cidr-protects-allocations
+  annotations:
+    {{ setResourceNameAnnotation "usage-ipv4-pool-cidr" }}
+spec:
+  replayDeletion: true
+  of:
+    apiVersion: ec2.aws.m.upbound.io/v1beta1
+    kind: VPCIpamPoolCidr
+    resourceRef:
+      name: {{ $networkName }}-ipv4-subnet-pool-cidr
+  reason: "IPv4 subnet CIDR allocations depend on this pool CIDR"
+{{- end }}
+{{- end }}
+
+{{- if and $useIpv6SubnetPool $ipv6SubnetPoolId $ipv6PoolCidrReady }}
+# Check if any IPv6 allocations are ready
+{{- $hasReadyIpv6Allocations := false }}
+{{- range $azConfig := $azConfigs }}
+  {{- with $azConfig.public }}
+    {{- $ipv6AllocKey := printf "cidr-alloc-ipv6-%s" .resourceName }}
+    {{- if get $resourceReadiness $ipv6AllocKey }}
+      {{- $hasReadyIpv6Allocations = true }}
+    {{- end }}
+  {{- end }}
+  {{- with $azConfig.private }}
+    {{- $ipv6AllocKey := printf "cidr-alloc-ipv6-%s" .resourceName }}
+    {{- if get $resourceReadiness $ipv6AllocKey }}
+      {{- $hasReadyIpv6Allocations = true }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if $hasReadyIpv6Allocations }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-ipv6-pool-cidr-protects-allocations
+  annotations:
+    {{ setResourceNameAnnotation "usage-ipv6-pool-cidr" }}
+spec:
+  replayDeletion: true
+  of:
+    apiVersion: ec2.aws.m.upbound.io/v1beta1
+    kind: VPCIpamPoolCidr
+    resourceRef:
+      name: {{ $networkName }}-ipv6-subnet-pool-cidr
+  reason: "IPv6 subnet CIDR allocations depend on this pool CIDR"
+{{- end }}
 {{- end }}

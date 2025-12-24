@@ -31,6 +31,10 @@ spec:
       enabled: true
       ipam:
         poolId: ipam-pool-0decd6c5216660c74
+        subnetPool:
+          enabled: true
+          poolId: ipam-pool-0888a212e86abbf13
+          netmaskLength: 64
     mode: dual-stack
   subnets:
     availabilityZones:

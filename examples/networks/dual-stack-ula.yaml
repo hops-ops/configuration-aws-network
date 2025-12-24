@@ -1,0 +1,48 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: dual-stack
+  namespace: infra
+spec:
+  aws:
+    providerConfig: default
+    config:
+      region: us-east-1
+      tags:
+        Environment: production
+
+  vpc:
+    cidr: "10.3.0.0/16"
+    ipv6:
+      ula:
+        enabled: true
+        cidr: "fd00:1234:5678::/48"
+        ipamPoolId: ipam-pool-0123456789abcdef0
+
+  subnets:
+    - name: dual-stack-public-a
+      cidr: "10.3.0.0/24"
+      availabilityZone: a
+      public: true
+      ipv6:
+        ulaCidr: "fd00:1234:5678:1::/64"
+    - name: dual-stack-public-b
+      cidr: "10.3.1.0/24"
+      availabilityZone: b
+      public: true
+      ipv6:
+        ulaCidr: "fd00:1234:5678:2::/64"
+    - name: dual-stack-private-a
+      cidr: "10.3.16.0/20"
+      availabilityZone: a
+      ipv6:
+        ulaCidr: "fd00:1234:5678:10::/64"
+    - name: dual-stack-private-b
+      cidr: "10.3.32.0/20"
+      availabilityZone: b
+      ipv6:
+        ulaCidr: "fd00:1234:5678:20::/64"
+
+  nat:
+    enabled: true
+    strategy: SingleAz

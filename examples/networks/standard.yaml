@@ -1,0 +1,44 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: standard
+  namespace: infra
+spec:
+  aws:
+    providerConfig: default
+    config:
+      region: us-east-1
+      accountId: "123456789012"
+      tags:
+        Environment: production
+        Team: platform
+
+  vpc:
+    cidr: "10.2.0.0/16"
+
+  subnets:
+    - name: standard-public-a
+      cidr: "10.2.0.0/24"
+      availabilityZone: a
+      public: true
+    - name: standard-public-b
+      cidr: "10.2.1.0/24"
+      availabilityZone: b
+      public: true
+    - name: standard-public-c
+      cidr: "10.2.2.0/24"
+      availabilityZone: c
+      public: true
+    - name: standard-private-a
+      cidr: "10.2.16.0/20"
+      availabilityZone: a
+    - name: standard-private-b
+      cidr: "10.2.32.0/20"
+      availabilityZone: b
+    - name: standard-private-c
+      cidr: "10.2.48.0/20"
+      availabilityZone: c
+
+  nat:
+    enabled: true
+    strategy: SingleAz
