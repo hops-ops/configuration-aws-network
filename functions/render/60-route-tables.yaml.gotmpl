@@ -23,8 +23,8 @@ spec:
       {{ $awsTags | toYaml | nindent 6 }}
       Name: {{ $publicRouteTableName }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: VPC protects public route table
 {{- if and $vpcReady $publicRtReady }}
@@ -49,15 +49,14 @@ spec:
 {{- end }}
 
 # Public subnet associations
-{{- range $azConfig := $azConfigs }}
-{{- with $azConfig.public }}
+{{- range $subnet := $publicSubnets }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
 metadata:
-  name: {{ .name }}-rta
+  name: {{ $subnet.name }}-rta
   annotations:
-    {{ setResourceNameAnnotation (printf "rta-public-%s" $azConfig.suffix) }}
+    {{ setResourceNameAnnotation (printf "rta-%s" $subnet.resourceName) }}
   labels:
     hops.ops.com.ai/network: {{ $networkName }}
 spec:
@@ -67,29 +66,27 @@ spec:
     routeTableIdRef:
       name: {{ $publicRouteTableName }}
     subnetIdRef:
-      name: {{ .name }}
+      name: {{ $subnet.name }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
-{{- end }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 {{- end }}
 {{- end }}
 
 # Private Route Tables (one per AZ for NAT routing)
-{{- range $azConfig := $azConfigs }}
-{{- with $azConfig.privateRouteTable }}
-{{ $rtReady := get $resourceReadiness .resourceName | default false }}
+{{- range $rt := $privateRouteTables }}
+{{ $rtReady := get $resourceReadiness $rt.resourceName | default false }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
 metadata:
-  name: {{ .name }}
+  name: {{ $rt.name }}
   annotations:
-    {{ setResourceNameAnnotation .resourceName }}
+    {{ setResourceNameAnnotation $rt.resourceName }}
   labels:
     hops.ops.com.ai/network: {{ $networkName }}
     hops.ops.com.ai/tier: private
-    hops.ops.com.ai/az: {{ $azConfig.suffix }}
+    hops.ops.com.ai/az: {{ $rt.azSuffix }}
 spec:
   managementPolicies: {{ $managementPolicies | toJson }}
   forProvider:
@@ -98,10 +95,10 @@ spec:
       name: {{ $networkName }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
-      Name: {{ .name }}
+      Name: {{ $rt.name }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: VPC protects private route table
 {{- if and $vpcReady $rtReady }}
@@ -109,9 +106,9 @@ spec:
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $networkName }}-vpc-protects-{{ .resourceName }}
+  name: {{ $networkName }}-vpc-protects-{{ $rt.resourceName }}
   annotations:
-    {{ setResourceNameAnnotation (printf "usage-vpc-%s" .resourceName) }}
+    {{ setResourceNameAnnotation (printf "usage-vpc-%s" $rt.resourceName) }}
 spec:
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -122,21 +119,21 @@ spec:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: RouteTable
     resourceRef:
-      name: {{ .name }}
-{{- end }}
+      name: {{ $rt.name }}
 {{- end }}
 {{- end }}
 
-# Private subnet associations
-{{- range $azConfig := $azConfigs }}
-{{- with $azConfig.private }}
+# Private subnet associations (associate each private subnet with its AZ's route table)
+{{- range $subnet := $privateSubnets }}
+{{- $rt := get $privateRtByAz $subnet.azSuffix }}
+{{- if $rt }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
 metadata:
-  name: {{ .name }}-rta
+  name: {{ $subnet.name }}-rta
   annotations:
-    {{ setResourceNameAnnotation (printf "rta-private-%s" $azConfig.suffix) }}
+    {{ setResourceNameAnnotation (printf "rta-%s" $subnet.resourceName) }}
   labels:
     hops.ops.com.ai/network: {{ $networkName }}
 spec:
@@ -144,11 +141,11 @@ spec:
   forProvider:
     region: {{ $awsRegion }}
     routeTableIdRef:
-      name: {{ $azConfig.privateRouteTable.name }}
+      name: {{ $rt.name }}
     subnetIdRef:
-      name: {{ .name }}
+      name: {{ $subnet.name }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 {{- end }}
 {{- end }}

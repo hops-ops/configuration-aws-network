@@ -1,5 +1,6 @@
 # code: language=yaml
 
+# VPC with explicit IPv4 CIDR and optional Amazon-provided IPv6
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPC
@@ -15,35 +16,9 @@ spec:
     region: {{ $awsRegion }}
     enableDnsHostnames: {{ $enableDnsHostnames }}
     enableDnsSupport: {{ $enableDnsSupport }}
-    {{- if $useIpv4Ipam }}
-    {{- if $ipv4IpamNetmaskLength }}
-    ipv4NetmaskLength: {{ $ipv4IpamNetmaskLength }}
-    {{- end }}
-    {{- if $ipv4IpamPoolId }}
-    ipv4IpamPoolId: {{ $ipv4IpamPoolId }}
-    {{- end }}
-    {{- if $ipv4IpamPoolRefName }}
-    ipv4IpamPoolIdRef:
-      name: {{ $ipv4IpamPoolRefName }}
-    {{- end }}
-    {{- if $ipv4IpamSelectorHasLabels }}
-    ipv4IpamPoolIdSelector:
-      matchLabels:
-        {{ $ipv4IpamPoolSelectorLabels | toYaml | nindent 8 }}
-    {{- end }}
-    {{- else if $useIpv4Manual }}
-    cidrBlock: {{ $manualVpcCidr }}
-    {{- end }}
-    {{- if $useIpv6AmazonProvided }}
+    cidrBlock: {{ $vpcCidr }}
+    {{- if $amazonIpv6Enabled }}
     assignGeneratedIpv6CidrBlock: true
-    {{- else if $useIpv6Ipam }}
-    {{- /* Note: AWS VPC only supports ipv6IpamPoolId - no ref/selector variants */}}
-    {{- if $ipv6IpamNetmaskLength }}
-    ipv6NetmaskLength: {{ $ipv6IpamNetmaskLength }}
-    {{- end }}
-    {{- if $ipv6IpamPoolId }}
-    ipv6IpamPoolId: {{ $ipv6IpamPoolId }}
-    {{- end }}
     {{- end }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
@@ -52,5 +27,5 @@ spec:
     {{ toYaml . | nindent 4 }}
     {{- end }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}

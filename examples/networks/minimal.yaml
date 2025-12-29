@@ -1,21 +1,28 @@
-# Minimal Network - Individual use case
-# Creates VPC with 3 public + 3 private subnets, no NAT (~$0/mo)
-# Platform handles ingress via load balancers; IPv6 egress is free
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: Network
 metadata:
-  name: my-vpc
-  namespace: dev
+  name: minimal
+  namespace: infra
 spec:
-  clusterName: my-cluster
-  aws:
-    config:
-      region: us-east-1
-  cidr:
-    ipv4:
-      ipam:
-        globalPoolName: sandbox
-    ipv6:
-      enabled: true
-      amazonProvided: true
-    mode: dual-stack
+  providerConfigRef:
+    name: default
+  region: us-east-1
+
+  vpc:
+    cidr: "10.1.0.0/16"
+
+  subnets:
+    - name: minimal-public-a
+      cidr: "10.1.0.0/24"
+      availabilityZone: a
+      public: true
+    - name: minimal-public-b
+      cidr: "10.1.1.0/24"
+      availabilityZone: b
+      public: true
+    - name: minimal-private-a
+      cidr: "10.1.16.0/20"
+      availabilityZone: a
+    - name: minimal-private-b
+      cidr: "10.1.32.0/20"
+      availabilityZone: b

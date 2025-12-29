@@ -31,6 +31,6 @@ spec:
       {{ $awsTags | toYaml | nindent 6 }}
       Name: {{ $networkName }}-flow-log
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 {{- end }}

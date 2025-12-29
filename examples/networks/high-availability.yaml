@@ -1,0 +1,42 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: high-availability
+  namespace: infra
+spec:
+  providerConfigRef:
+    name: default
+  region: us-east-1
+  tags:
+    Environment: production
+    HighAvailability: "true"
+
+  vpc:
+    cidr: "10.5.0.0/16"
+
+  subnets:
+    - name: ha-public-a
+      cidr: "10.5.0.0/24"
+      availabilityZone: a
+      public: true
+    - name: ha-public-b
+      cidr: "10.5.1.0/24"
+      availabilityZone: b
+      public: true
+    - name: ha-public-c
+      cidr: "10.5.2.0/24"
+      availabilityZone: c
+      public: true
+    - name: ha-private-a
+      cidr: "10.5.16.0/20"
+      availabilityZone: a
+    - name: ha-private-b
+      cidr: "10.5.32.0/20"
+      availabilityZone: b
+    - name: ha-private-c
+      cidr: "10.5.48.0/20"
+      availabilityZone: c
+
+  nat:
+    enabled: true
+    strategy: HighlyAvailable

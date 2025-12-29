@@ -9,45 +9,43 @@ status:
     name: {{ $networkName }}
     region: {{ $awsRegion }}
     vpcId: {{ $observedVpcId | default "Pending" }}
-    addressMode: {{ $cidrMode }}
     cidr:
       ipv4: {{ $observedVpcCidr | default "Pending" }}
-      {{- if $hasIpv6 }}
-      ipv6: {{ $observedVpcIpv6Cidr | default "Pending" }}
+      {{- if $ulaEnabled }}
+      ipv6Ula: {{ $observedUlaIpv6Cidr | default "Pending" }}
+      {{- end }}
+      {{- if $amazonIpv6Enabled }}
+      ipv6AmazonProvided: {{ $observedVpcIpv6Cidr | default "Pending" }}
       {{- end }}
     availabilityZones:
-    {{- range $azConfig := $azConfigs }}
-      - {{ $azConfig.az }}
+    {{- range $az := $availabilityZones }}
+      - {{ $awsRegion }}{{ $az }}
     {{- end }}
     subnets:
       {{- if $hasPublicSubnets }}
       public:
-      {{- range $azConfig := $azConfigs }}
-      {{- with $azConfig.public }}
-        {{ $subnetObs := get $observedSubnets .resourceName | default (dict) }}
-        - name: {{ .name }}
+      {{- range $subnet := $publicSubnets }}
+        {{ $subnetObs := get $observedSubnets $subnet.resourceName | default (dict) }}
+        - name: {{ $subnet.name }}
           id: {{ $subnetObs.id | default "Pending" }}
-          availabilityZone: {{ $azConfig.az }}
+          availabilityZone: {{ $subnet.az }}
           ipv4CidrBlock: {{ $subnetObs.ipv4Cidr | default "Pending" }}
           {{- if $hasIpv6 }}
           ipv6CidrBlock: {{ $subnetObs.ipv6Cidr | default "Pending" }}
           {{- end }}
-      {{- end }}
       {{- end }}
       {{- end }}
       {{- if $hasPrivateSubnets }}
       private:
-      {{- range $azConfig := $azConfigs }}
-      {{- with $azConfig.private }}
-        {{ $subnetObs := get $observedSubnets .resourceName | default (dict) }}
-        - name: {{ .name }}
+      {{- range $subnet := $privateSubnets }}
+        {{ $subnetObs := get $observedSubnets $subnet.resourceName | default (dict) }}
+        - name: {{ $subnet.name }}
           id: {{ $subnetObs.id | default "Pending" }}
-          availabilityZone: {{ $azConfig.az }}
+          availabilityZone: {{ $subnet.az }}
           ipv4CidrBlock: {{ $subnetObs.ipv4Cidr | default "Pending" }}
           {{- if $hasIpv6 }}
           ipv6CidrBlock: {{ $subnetObs.ipv6Cidr | default "Pending" }}
           {{- end }}
-      {{- end }}
       {{- end }}
       {{- end }}
     routeTables:
@@ -58,13 +56,11 @@ status:
       {{- end }}
       {{- if $hasPrivateSubnets }}
       private:
-      {{- range $azConfig := $azConfigs }}
-      {{- with $azConfig.privateRouteTable }}
-        {{ $rtObs := get $observedRouteTables .resourceName | default (dict) }}
-        - name: {{ .name }}
+      {{- range $rt := $privateRouteTables }}
+        {{ $rtObs := get $observedRouteTables $rt.resourceName | default (dict) }}
+        - name: {{ $rt.name }}
           id: {{ $rtObs.id | default "Pending" }}
-          availabilityZone: {{ $azConfig.az }}
-      {{- end }}
+          availabilityZone: {{ $awsRegion }}{{ $rt.azSuffix }}
       {{- end }}
       {{- end }}
     {{- if $renderNatGateways }}
@@ -73,7 +69,7 @@ status:
       {{ $natObs := get $observedNatGateways $natConfig.resourceName | default (dict) }}
       - name: {{ $natConfig.name }}
         id: {{ $natObs.id | default "Pending" }}
-        availabilityZone: {{ $awsRegion }}{{ $natConfig.targetSuffix }}
+        availabilityZone: {{ $awsRegion }}{{ $natConfig.azSuffix }}
     {{- end }}
     {{- end }}
     {{- if $renderInternetGateway }}
@@ -84,7 +80,7 @@ status:
     egressOnlyInternetGateway:
       id: {{ $observedEigwId | default "Pending" }}
     {{- end }}
-    {{- if $renderTgwAttachment }}
+    {{- if and $tgwEnabled $tgwId }}
     transitGatewayAttachment:
       id: {{ $observedTgwAttachmentId | default "Pending" }}
       state: {{ $observedTgwAttachmentState | default "Pending" }}

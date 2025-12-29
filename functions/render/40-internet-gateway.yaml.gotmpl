@@ -20,8 +20,8 @@ spec:
       {{ $awsTags | toYaml | nindent 6 }}
       Name: {{ $networkName }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: VPC protects Internet Gateway
 {{- if and $vpcReady $igwReady }}
@@ -65,8 +65,8 @@ spec:
     gatewayIdRef:
       name: {{ $networkName }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: IGW protects public IPv4 route
 {{ $routeIpv4Ready := get $resourceReadiness "route-public-default-ipv4" | default false }}
@@ -112,8 +112,8 @@ spec:
     gatewayIdRef:
       name: {{ $networkName }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: IGW protects public IPv6 route
 {{ $routeIpv6Ready := get $resourceReadiness "route-public-default-ipv6" | default false }}

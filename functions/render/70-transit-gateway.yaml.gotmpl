@@ -1,6 +1,9 @@
 # code: language=yaml
 
-{{- if $renderTgwAttachment }}
+# Transit Gateway VPC Attachment
+# Attaches the VPC to an existing Transit Gateway
+
+{{- if and $tgwEnabled $tgwId $vpcReady }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: TransitGatewayVPCAttachment
@@ -17,18 +20,41 @@ spec:
     transitGatewayId: {{ $tgwId }}
     vpcIdRef:
       name: {{ $networkName }}
+    {{- $privateSubnetNames := list }}
+    {{- range $subnet := $privateSubnets }}
+    {{- $privateSubnetNames = append $privateSubnetNames $subnet.name }}
+    {{- end }}
     subnetIdRefs:
-    {{- range $azConfig := $azConfigs }}
-    {{- with $azConfig.private }}
-      - name: {{ .name }}
+    {{- range $subnetName := $privateSubnetNames }}
+      - name: {{ $subnetName }}
     {{- end }}
-    {{- end }}
-    transitGatewayDefaultRouteTableAssociation: {{ $tgwRoutePropagation }}
-    transitGatewayDefaultRouteTablePropagation: {{ $tgwRoutePropagation }}
     tags:
       {{ $awsTags | toYaml | nindent 6 }}
       Name: {{ $networkName }}-tgw-attachment
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
+
+# Usage: VPC protects Transit Gateway attachment
+{{ $tgwAttachmentReady := get $resourceReadiness "tgw-attachment" | default false }}
+{{- if $tgwAttachmentReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $networkName }}-vpc-protects-tgw-attachment
+  annotations:
+    {{ setResourceNameAnnotation "usage-vpc-tgw-attachment" }}
+spec:
+  of:
+    apiVersion: ec2.aws.m.upbound.io/v1beta1
+    kind: VPC
+    resourceRef:
+      name: {{ $networkName }}
+  by:
+    apiVersion: ec2.aws.m.upbound.io/v1beta1
+    kind: TransitGatewayVPCAttachment
+    resourceRef:
+      name: {{ $networkName }}-tgw-attachment
+{{- end }}
 {{- end }}

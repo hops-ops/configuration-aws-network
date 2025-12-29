@@ -1,128 +1,159 @@
 # code: language=yaml
 
-# Build AZ configurations
-{{ $hasAZs := gt (len $availabilityZones) 0 }}
-{{ $hasPublicSubnets := and $includePublic $hasAZs }}
-{{ $hasPrivateSubnets := and $includePrivate $hasAZs }}
+# Process explicit subnet array from spec
+{{ $subnetsSpec := $spec.subnets | default (list) }}
 
-# Determine if NAT is needed
+# Build subnet configs with computed values
+{{ $publicSubnets := list }}
+{{ $privateSubnets := list }}
+{{ $availabilityZones := list }}
+{{ $azSet := dict }}
+
+{{ range $subnet := $subnetsSpec }}
+  {{ $subnetName := $subnet.name | default "" }}
+  {{ $subnetCidr := $subnet.cidr | default "" }}
+  {{ $subnetAz := $subnet.availabilityZone | default "" }}
+  {{ $isPublic := $subnet.public | default false }}
+  {{ $subnetIpv6 := $subnet.ipv6 | default (dict) }}
+  {{ $subnetUlaCidr := $subnetIpv6.ulaCidr | default "" }}
+  {{ $subnetAmazonCidr := $subnetIpv6.amazonProvidedCidr | default "" }}
+
+  # Normalize AZ to suffix only (strip region prefix if present)
+  {{ $azSuffix := $subnetAz }}
+  {{ if hasPrefix $awsRegion $subnetAz }}
+    {{ $azSuffix = trimPrefix $awsRegion $subnetAz }}
+  {{ end }}
+
+  # Full AZ name
+  {{ $fullAz := printf "%s%s" $awsRegion $azSuffix }}
+
+  # Track unique AZs
+  {{ if not (hasKey $azSet $azSuffix) }}
+    {{ $_ := set $azSet $azSuffix true }}
+    {{ $availabilityZones = append $availabilityZones $azSuffix }}
+  {{ end }}
+
+  # Resource name for annotations (sanitized)
+  {{ $resourceName := printf "subnet-%s" $subnetName }}
+
+  # Build tags
+  {{ $tier := "private" }}
+  {{ $mapPublicIp := false }}
+  {{ $k8sRoleTag := "kubernetes.io/role/internal-elb" }}
+  {{ if $isPublic }}
+    {{ $tier = "public" }}
+    {{ $mapPublicIp = true }}
+    {{ $k8sRoleTag = "kubernetes.io/role/elb" }}
+  {{ end }}
+
+  {{ $subnetTags := merge (dict) $awsTags (dict
+    "Name" $subnetName
+    "hops.ops.com.ai/tier" $tier
+    "hops.ops.com.ai/az" $azSuffix
+    $k8sRoleTag "1"
+  ) }}
+
+  {{ $subnetConfig := dict
+    "name" $subnetName
+    "resourceName" $resourceName
+    "cidr" $subnetCidr
+    "az" $fullAz
+    "azSuffix" $azSuffix
+    "public" $isPublic
+    "mapPublicIpOnLaunch" $mapPublicIp
+    "tags" $subnetTags
+    "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" $tier "hops.ops.com.ai/az" $azSuffix)
+    "ipv6UlaCidr" $subnetUlaCidr
+    "ipv6AmazonCidr" $subnetAmazonCidr
+  }}
+
+  {{ if $isPublic }}
+    {{ $publicSubnets = append $publicSubnets $subnetConfig }}
+  {{ else }}
+    {{ $privateSubnets = append $privateSubnets $subnetConfig }}
+  {{ end }}
+{{ end }}
+
+# Sort availability zones
+{{ $availabilityZones = $availabilityZones | sortAlpha }}
+
+# Derived flags
+{{ $hasPublicSubnets := gt (len $publicSubnets) 0 }}
+{{ $hasPrivateSubnets := gt (len $privateSubnets) 0 }}
+
+# NAT Gateway configuration
 {{ $natDesired := and $natEnabled $hasPublicSubnets $hasPrivateSubnets (ne $natStrategyUpper "NONE") }}
 {{ $singleNatSuffix := "" }}
 {{ if gt (len $availabilityZones) 0 }}
-  {{- $singleNatSuffix = index $availabilityZones 0 }}
+  {{ $singleNatSuffix = index $availabilityZones 0 }}
 {{ end }}
 
-# Build subnet configurations per AZ
-{{ $azConfigs := list }}
-{{ range $i, $suffix := $availabilityZones }}
-  {{ $azName := printf "%s%s" $awsRegion $suffix }}
-  {{ $azConfig := dict "suffix" $suffix "az" $azName "index" $i }}
-
-  # Public subnet config
-  {{ if $includePublic }}
-    {{ $publicName := printf "%s-public-%s" $networkName $suffix }}
-    {{ $publicTags := merge (dict) $awsTags (dict
-      "Name" $publicName
-      "hops.ops.com.ai/tier" "public"
-      "hops.ops.com.ai/az" $suffix
-      "kubernetes.io/role/elb" "1"
-    ) }}
-    {{ $_ := set $azConfig "public" (dict
-      "name" $publicName
-      "resourceName" (printf "subnet-public-%s" $suffix)
-      "tags" $publicTags
-      "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $suffix)
-      "mapPublicIpOnLaunch" true
-      "netmaskLength" $publicNetmaskLength
-      "ipv6NetmaskLength" $ipv6NetmaskLength
-    ) }}
-  {{ end }}
-
-  # Private subnet config
-  {{ if $includePrivate }}
-    {{ $privateName := printf "%s-private-%s" $networkName $suffix }}
-    {{ $privateTags := merge (dict) $awsTags (dict
-      "Name" $privateName
-      "hops.ops.com.ai/tier" "private"
-      "hops.ops.com.ai/az" $suffix
-      "kubernetes.io/role/internal-elb" "1"
-    ) }}
-    {{ $_ := set $azConfig "private" (dict
-      "name" $privateName
-      "resourceName" (printf "subnet-private-%s" $suffix)
-      "tags" $privateTags
-      "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $suffix)
-      "mapPublicIpOnLaunch" false
-      "netmaskLength" $privateNetmaskLength
-      "ipv6NetmaskLength" $ipv6NetmaskLength
-    ) }}
-  {{ end }}
-
-  # NAT Gateway config (for private subnets with egress)
-  {{ if and $natDesired $includePrivate $includePublic }}
-    {{ $targetSuffix := $suffix }}
-    {{ if and (eq $natStrategyUpper "SINGLEAZ") $singleNatSuffix }}
-      {{ $targetSuffix = $singleNatSuffix }}
-    {{ end }}
-    {{ $natName := printf "%s-nat-%s" $networkName $targetSuffix }}
-    {{ $publicSubnetForNat := printf "%s-public-%s" $networkName $targetSuffix }}
-    {{ $ownsNat := or (eq $natStrategyUpper "HIGHLYAVAILABLE") (and (eq $natStrategyUpper "SINGLEAZ") (eq $suffix $singleNatSuffix)) }}
-    {{ $natConfig := dict
-      "name" $natName
-      "resourceName" (printf "nat-%s" $targetSuffix)
-      "eipName" (printf "%s-nat-eip-%s" $networkName $targetSuffix)
-      "eipResourceName" (printf "eip-%s" $targetSuffix)
-      "publicSubnet" $publicSubnetForNat
-      "publicSubnetResourceName" (printf "subnet-public-%s" $targetSuffix)
-      "owns" $ownsNat
-      "targetSuffix" $targetSuffix
-    }}
-    {{ $_ := set $azConfig "nat" $natConfig }}
-  {{ end }}
-
-  # Private route table config (per-AZ for NAT routing)
-  {{ if $includePrivate }}
-    {{ $privateRtName := printf "%s-private-rt-%s" $networkName $suffix }}
-    {{ $_ := set $azConfig "privateRouteTable" (dict
-      "name" $privateRtName
-      "resourceName" (printf "rt-private-%s" $suffix)
-    ) }}
-  {{ end }}
-
-  {{ $hasResources := or (get $azConfig "public") (get $azConfig "private") }}
-  {{ if $hasResources }}
-    {{ $azConfigs = append $azConfigs $azConfig }}
-  {{ end }}
-{{ end }}
-
-# Collect lists for easy iteration
-{{ $publicSubnets := list }}
-{{ $privateSubnets := list }}
+# Build NAT configs
 {{ $natConfigsForCreation := list }}
-{{ $privateRouteTables := list }}
+{{ $natConfigsByAz := dict }}
 
-{{ range $azConfigs }}
-  {{ with .public }}
-    {{ $publicSubnets = append $publicSubnets . }}
-  {{ end }}
-  {{ with .private }}
-    {{ $privateSubnets = append $privateSubnets . }}
-  {{ end }}
-  {{ with .nat }}
-    {{ if .owns }}
-      {{ $natConfigsForCreation = append $natConfigsForCreation . }}
+{{ if $natDesired }}
+  {{ range $subnet := $publicSubnets }}
+    {{ $azSuffix := $subnet.azSuffix }}
+
+    # Determine if this AZ needs a NAT
+    {{ $needsNat := false }}
+    {{ if eq $natStrategyUpper "HIGHLYAVAILABLE" }}
+      {{ $needsNat = true }}
+    {{ else if eq $natStrategyUpper "SINGLEAZ" }}
+      {{ $needsNat = eq $azSuffix $singleNatSuffix }}
+    {{ end }}
+
+    {{ if and $needsNat (not (hasKey $natConfigsByAz $azSuffix)) }}
+      {{ $natName := printf "%s-nat-%s" $networkName $azSuffix }}
+      {{ $natConfig := dict
+        "name" $natName
+        "resourceName" (printf "nat-%s" $azSuffix)
+        "eipName" (printf "%s-nat-eip-%s" $networkName $azSuffix)
+        "eipResourceName" (printf "eip-%s" $azSuffix)
+        "publicSubnet" $subnet.name
+        "publicSubnetResourceName" $subnet.resourceName
+        "azSuffix" $azSuffix
+      }}
+      {{ $natConfigsForCreation = append $natConfigsForCreation $natConfig }}
+      {{ $_ := set $natConfigsByAz $azSuffix $natConfig }}
     {{ end }}
   {{ end }}
-  {{ with .privateRouteTable }}
-    {{ $privateRouteTables = append $privateRouteTables . }}
+{{ end }}
+
+# Build private route table configs (one per AZ with private subnets)
+{{ $privateRouteTables := list }}
+{{ $privateRtByAz := dict }}
+
+{{ range $subnet := $privateSubnets }}
+  {{ $azSuffix := $subnet.azSuffix }}
+  {{ if not (hasKey $privateRtByAz $azSuffix) }}
+    {{ $rtName := printf "%s-private-rt-%s" $networkName $azSuffix }}
+    {{ $rtConfig := dict
+      "name" $rtName
+      "resourceName" (printf "rt-private-%s" $azSuffix)
+      "azSuffix" $azSuffix
+    }}
+    {{ $privateRouteTables = append $privateRouteTables $rtConfig }}
+    {{ $_ := set $privateRtByAz $azSuffix $rtConfig }}
+  {{ end }}
+{{ end }}
+
+# Map NAT gateways to private route tables
+{{ range $i, $rt := $privateRouteTables }}
+  {{ $azSuffix := $rt.azSuffix }}
+  {{ $targetNatAz := $azSuffix }}
+  {{ if eq $natStrategyUpper "SINGLEAZ" }}
+    {{ $targetNatAz = $singleNatSuffix }}
+  {{ end }}
+  {{ $natConfig := get $natConfigsByAz $targetNatAz }}
+  {{ if $natConfig }}
+    {{ $_ := set $rt "natGateway" $natConfig }}
   {{ end }}
 {{ end }}
 
 # Update derived flags
-{{ $hasPublicSubnets = gt (len $publicSubnets) 0 }}
-{{ $hasPrivateSubnets = gt (len $privateSubnets) 0 }}
 {{ $renderNatGateways := and $natDesired (gt (len $natConfigsForCreation) 0) }}
 {{ $renderInternetGateway := $hasPublicSubnets }}
 {{ $renderEgressOnlyIgw := and $hasIpv6 $hasPrivateSubnets }}
-{{ $renderTgwAttachment := and $tgwEnabled $tgwId $hasPrivateSubnets }}
 {{ $renderFlowLogs := and $flowLogsEnabled $flowLogsDestinationArn }}
