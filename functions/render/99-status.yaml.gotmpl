@@ -5,6 +5,31 @@ apiVersion: {{ $xr.apiVersion }}
 kind: {{ $xr.kind }}
 status:
   ready: {{ $vpcReady }}
+  {{- if $usingAllocations }}
+  allocations:
+    {{- if $ipv4AllocationEnabled }}
+    ipv4:
+      ready: {{ $ipv4AllocReady }}
+      cidr: {{ $ipv4AllocCidr | default "Pending" }}
+      vpcPoolId: {{ $ipv4AllocVpcPoolId | default "Pending" }}
+      subnetPoolId: {{ $ipv4AllocSubnetPoolId | default "Pending" }}
+      {{- if gt (len $ipv4AllocSubnets) 0 }}
+      subnets:
+        {{ $ipv4AllocSubnets | toYaml | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- if $ipv6UlaAllocationEnabled }}
+    ipv6Ula:
+      ready: {{ $ipv6UlaAllocReady }}
+      cidr: {{ $ipv6UlaAllocCidr | default "Pending" }}
+      vpcPoolId: {{ $ipv6UlaAllocVpcPoolId | default "Pending" }}
+      subnetPoolId: {{ $ipv6UlaAllocSubnetPoolId | default "Pending" }}
+      {{- if gt (len $ipv6UlaAllocSubnets) 0 }}
+      subnets:
+        {{ $ipv6UlaAllocSubnets | toYaml | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
   network:
     name: {{ $networkName }}
     region: {{ $awsRegion }}

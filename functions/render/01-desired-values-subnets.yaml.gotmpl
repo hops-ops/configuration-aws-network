@@ -1,7 +1,83 @@
 # code: language=yaml
 
-# Process explicit subnet array from spec
+# Process subnet array from spec or generate from allocations
 {{ $subnetsSpec := $spec.subnets | default (list) }}
+
+# If no explicit subnets and using allocations, generate from allocation config
+{{ if and (eq (len $subnetsSpec) 0) $usingAllocations }}
+  {{ $allocAzs := list }}
+  {{ $allocPublicEnabled := false }}
+  {{ $allocPrivateEnabled := false }}
+
+  # Use IPv4 allocation config as primary (falls back to IPv6 if no IPv4)
+  {{ if $ipv4AllocationEnabled }}
+    {{ $allocAzs = $ipv4AllocAzs }}
+    {{ $allocPublicEnabled = $ipv4AllocPublicEnabled }}
+    {{ $allocPrivateEnabled = $ipv4AllocPrivateEnabled }}
+  {{ else if $ipv6UlaAllocationEnabled }}
+    {{ $allocAzs = $ipv6UlaAllocAzs }}
+    {{ $allocPublicEnabled = $ipv6UlaAllocPublicEnabled }}
+    {{ $allocPrivateEnabled = $ipv6UlaAllocPrivateEnabled }}
+  {{ end }}
+
+  # Generate subnet specs from allocation config
+  {{ range $az := $allocAzs }}
+    {{ if $allocPublicEnabled }}
+      {{ $subnetName := printf "%s-public-%s" $networkName $az }}
+      {{ $ipv4Cidr := get $ipv4AllocSubnets (printf "public-%s" $az) | default "" }}
+      {{ $ipv6Cidr := get $ipv6UlaAllocSubnets (printf "public-%s" $az) | default "" }}
+      {{ $subnet := dict "name" $subnetName "cidr" $ipv4Cidr "availabilityZone" $az "public" true "ipv6" (dict "ulaCidr" $ipv6Cidr) }}
+      {{ $subnetsSpec = append $subnetsSpec $subnet }}
+    {{ end }}
+    {{ if $allocPrivateEnabled }}
+      {{ $subnetName := printf "%s-private-%s" $networkName $az }}
+      {{ $ipv4Cidr := get $ipv4AllocSubnets (printf "private-%s" $az) | default "" }}
+      {{ $ipv6Cidr := get $ipv6UlaAllocSubnets (printf "private-%s" $az) | default "" }}
+      {{ $subnet := dict "name" $subnetName "cidr" $ipv4Cidr "availabilityZone" $az "public" false "ipv6" (dict "ulaCidr" $ipv6Cidr) }}
+      {{ $subnetsSpec = append $subnetsSpec $subnet }}
+    {{ end }}
+  {{ end }}
+{{ else if and (gt (len $subnetsSpec) 0) $usingAllocations }}
+  # User provided explicit subnets but using allocations - overlay allocation CIDRs
+  {{ $updatedSubnets := list }}
+  {{ range $subnet := $subnetsSpec }}
+    {{ $subnetName := $subnet.name | default "" }}
+    {{ $isPublic := $subnet.public | default false }}
+    {{ $azSuffix := $subnet.availabilityZone | default "" }}
+    {{ if hasPrefix $awsRegion $azSuffix }}
+      {{ $azSuffix = trimPrefix $awsRegion $azSuffix }}
+    {{ end }}
+
+    # Build allocation lookup key (e.g., "public-a", "private-b")
+    {{ $tier := "private" }}
+    {{ if $isPublic }}
+      {{ $tier = "public" }}
+    {{ end }}
+    {{ $allocKey := printf "%s-%s" $tier $azSuffix }}
+
+    # Get CIDRs from allocations if not explicitly set
+    {{ $ipv4Cidr := $subnet.cidr | default "" }}
+    {{ if and (eq $ipv4Cidr "") $ipv4AllocationEnabled }}
+      {{ $ipv4Cidr = get $ipv4AllocSubnets $allocKey | default "" }}
+    {{ end }}
+
+    {{ $subnetIpv6 := $subnet.ipv6 | default (dict) }}
+    {{ $ipv6UlaCidr := $subnetIpv6.ulaCidr | default "" }}
+    {{ if and (eq $ipv6UlaCidr "") $ipv6UlaAllocationEnabled }}
+      {{ $ipv6UlaCidr = get $ipv6UlaAllocSubnets $allocKey | default "" }}
+    {{ end }}
+
+    # Build updated subnet with allocation CIDRs
+    {{ $updatedSubnet := merge (dict) $subnet }}
+    {{ $_ := set $updatedSubnet "cidr" $ipv4Cidr }}
+    {{ $updatedIpv6 := merge (dict) $subnetIpv6 }}
+    {{ $_ := set $updatedIpv6 "ulaCidr" $ipv6UlaCidr }}
+    {{ $_ := set $updatedSubnet "ipv6" $updatedIpv6 }}
+
+    {{ $updatedSubnets = append $updatedSubnets $updatedSubnet }}
+  {{ end }}
+  {{ $subnetsSpec = $updatedSubnets }}
+{{ end }}
 
 # Build subnet configs with computed values
 {{ $publicSubnets := list }}

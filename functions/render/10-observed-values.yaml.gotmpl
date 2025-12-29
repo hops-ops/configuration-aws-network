@@ -2,6 +2,46 @@
 
 # Observed resources for status projection and usage gating
 {{ $observed := $.observed.resources | default (dict) }}
+
+# Extract IPv4NetworkAllocation observed values
+{{ $ipv4AllocEntry := get $observed "ipv4-network-allocation" | default (dict) }}
+{{ $ipv4AllocResource := $ipv4AllocEntry.resource | default (dict) }}
+{{ $ipv4AllocStatus := $ipv4AllocResource.status | default (dict) }}
+{{ $ipv4AllocReady := $ipv4AllocStatus.ready | default false }}
+{{ $ipv4AllocCidr := $ipv4AllocStatus.cidr | default "" }}
+{{ $ipv4AllocVpcPoolId := $ipv4AllocStatus.vpcPoolId | default "" }}
+{{ $ipv4AllocSubnetPoolId := $ipv4AllocStatus.subnetPoolId | default "" }}
+{{ $ipv4AllocSubnets := $ipv4AllocStatus.subnets | default (dict) }}
+
+# Extract IPv6ULANetworkAllocation observed values
+{{ $ipv6UlaAllocEntry := get $observed "ipv6-ula-network-allocation" | default (dict) }}
+{{ $ipv6UlaAllocResource := $ipv6UlaAllocEntry.resource | default (dict) }}
+{{ $ipv6UlaAllocStatus := $ipv6UlaAllocResource.status | default (dict) }}
+{{ $ipv6UlaAllocReady := $ipv6UlaAllocStatus.ready | default false }}
+{{ $ipv6UlaAllocCidr := $ipv6UlaAllocStatus.cidr | default "" }}
+{{ $ipv6UlaAllocVpcPoolId := $ipv6UlaAllocStatus.vpcPoolId | default "" }}
+{{ $ipv6UlaAllocSubnetPoolId := $ipv6UlaAllocStatus.subnetPoolId | default "" }}
+{{ $ipv6UlaAllocSubnets := $ipv6UlaAllocStatus.subnets | default (dict) }}
+
+# Determine effective VPC CIDR (explicit or from allocation)
+{{ $effectiveVpcCidr := $vpcCidr }}
+{{ if and $ipv4AllocationEnabled (ne $ipv4AllocCidr "") }}
+  {{ $effectiveVpcCidr = $ipv4AllocCidr }}
+{{ end }}
+
+# Determine effective ULA CIDR (explicit or from allocation)
+{{ $effectiveUlaCidr := $ulaCidr }}
+{{ if and $ipv6UlaAllocationEnabled (ne $ipv6UlaAllocCidr "") }}
+  {{ $effectiveUlaCidr = $ipv6UlaAllocCidr }}
+{{ end }}
+
+# Update ULA settings based on allocation
+{{ if $ipv6UlaAllocationEnabled }}
+  {{ $ulaEnabled = true }}
+  {{ $ulaIpamPoolId = $ipv6UlaAllocVpcPoolId }}
+{{ end }}
+
+# Note: Allocation observed values are extracted in 002-allocation-observed.yaml.gotmpl
 {{ $resourceReadiness := dict }}
 
 # Check Ready condition for all observed resources

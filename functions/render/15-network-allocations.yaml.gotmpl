@@ -1,0 +1,67 @@
+# code: language=yaml
+
+# IPv4NetworkAllocation composed resource
+{{ if $ipv4AllocationEnabled }}
+---
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: IPv4NetworkAllocation
+metadata:
+  name: {{ $networkName }}-ipv4
+  annotations:
+    {{ setResourceNameAnnotation "ipv4-network-allocation" }}
+spec:
+  managementPolicies: {{ toYaml $managementPolicies | nindent 4 }}
+  providerConfigRef:
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
+  regionalPoolId: {{ $ipv4RegionalPoolId }}
+  scopeId: {{ $ipv4ScopeId }}
+  region: {{ $awsRegion }}
+  {{ if ne $ipv4Locale "" }}
+  locale: {{ $ipv4Locale }}
+  {{ end }}
+  tags: {{ toYaml $awsTags | nindent 4 }}
+  vpc:
+    netmaskLength: {{ $ipv4VpcNetmask }}
+  subnets:
+    availabilityZones: {{ toYaml $ipv4AllocAzs | nindent 4 }}
+    public:
+      enabled: {{ $ipv4AllocPublicEnabled }}
+      netmaskLength: {{ $ipv4AllocPublicNetmask }}
+    private:
+      enabled: {{ $ipv4AllocPrivateEnabled }}
+      netmaskLength: {{ $ipv4AllocPrivateNetmask }}
+{{ end }}
+
+# IPv6ULANetworkAllocation composed resource
+{{ if $ipv6UlaAllocationEnabled }}
+---
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: IPv6ULANetworkAllocation
+metadata:
+  name: {{ $networkName }}-ipv6-ula
+  annotations:
+    {{ setResourceNameAnnotation "ipv6-ula-network-allocation" }}
+spec:
+  managementPolicies: {{ toYaml $managementPolicies | nindent 4 }}
+  providerConfigRef:
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
+  regionalPoolId: {{ $ipv6UlaRegionalPoolId }}
+  scopeId: {{ $ipv6UlaScopeId }}
+  region: {{ $awsRegion }}
+  {{ if ne $ipv6UlaLocale "" }}
+  locale: {{ $ipv6UlaLocale }}
+  {{ end }}
+  tags: {{ toYaml $awsTags | nindent 4 }}
+  vpc:
+    netmaskLength: {{ $ipv6UlaVpcNetmask }}
+  subnets:
+    availabilityZones: {{ toYaml $ipv6UlaAllocAzs | nindent 4 }}
+    public:
+      enabled: {{ $ipv6UlaAllocPublicEnabled }}
+      netmaskLength: {{ $ipv6UlaAllocPublicNetmask }}
+    private:
+      enabled: {{ $ipv6UlaAllocPrivateEnabled }}
+      netmaskLength: {{ $ipv6UlaAllocPrivateNetmask }}
+{{ end }}

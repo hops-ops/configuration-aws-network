@@ -26,8 +26,6 @@ spec:
             description: Desired state for the Network.
             required:
             - region
-            - vpc
-            - subnets
             properties:
               managementPolicies:
                 type: array
@@ -57,6 +55,37 @@ spec:
                     description: Kind of the provider config reference.
                     default: ProviderConfig
 
+              # Network Allocations - auto-allocate CIDRs from IPAM
+              networkAllocations:
+                type: object
+                description: |
+                  Enable automatic CIDR allocation from IPAM pools.
+                  When specified, vpc.cidr and subnets become optional.
+                  CIDRs are allocated from IPAM and exposed in status.
+                properties:
+                  ipv4:
+                    type: object
+                    description: |
+                      IPv4 network allocation config. Other properties pass through
+                      to IPv4NetworkAllocation XRD (regionalPoolId, scopeId, vpc, subnets, etc).
+                    x-kubernetes-preserve-unknown-fields: true
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Enable IPv4 CIDR allocation from IPAM.
+                        default: false
+                  ipv6Ula:
+                    type: object
+                    description: |
+                      IPv6 ULA network allocation config. Other properties pass through
+                      to IPv6ULANetworkAllocation XRD (regionalPoolId, scopeId, vpc, subnets, etc).
+                    x-kubernetes-preserve-unknown-fields: true
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Enable IPv6 ULA CIDR allocation from IPAM.
+                        default: false
+
               # AWS Configuration (top-level since this is an AWS XRD)
               region:
                 type: string
@@ -72,15 +101,14 @@ spec:
               # VPC Configuration
               vpc:
                 type: object
-                description: VPC configuration with explicit CIDRs.
-                required:
-                - cidr
+                description: |
+                  VPC configuration. CIDR can be explicit or from networkAllocations.
                 properties:
                   cidr:
                     type: string
                     description: |
                       IPv4 CIDR block for the VPC (e.g., "10.1.0.0/16").
-                      Provided by IPv4NetworkAllocation status.
+                      Optional when using networkAllocations.ipv4.
                   ipv6:
                     type: object
                     description: Optional IPv6 configuration for dual-stack.
@@ -122,13 +150,13 @@ spec:
               subnets:
                 type: array
                 description: |
-                  Subnet definitions with explicit CIDRs.
-                  Each subnet specifies its CIDR, availability zone, and type.
+                  Subnet definitions. Optional when using networkAllocations.
+                  When using networkAllocations, subnets are auto-generated based on
+                  the allocation config (AZs, public/private settings).
                 items:
                   type: object
                   required:
                   - name
-                  - cidr
                   - availabilityZone
                   properties:
                     name:
@@ -136,7 +164,9 @@ spec:
                       description: Subnet name (e.g., "public-a", "private-b").
                     cidr:
                       type: string
-                      description: IPv4 CIDR block for the subnet.
+                      description: |
+                        IPv4 CIDR block for the subnet.
+                        Optional when using networkAllocations.ipv4.
                     availabilityZone:
                       type: string
                       description: Availability zone suffix (a, b, c) or full AZ name.
@@ -237,6 +267,48 @@ spec:
             properties:
               ready:
                 type: boolean
+              allocations:
+                type: object
+                description: Status of network allocations when using IPAM.
+                properties:
+                  ipv4:
+                    type: object
+                    description: IPv4 allocation status.
+                    properties:
+                      ready:
+                        type: boolean
+                      cidr:
+                        type: string
+                        description: Allocated VPC IPv4 CIDR.
+                      vpcPoolId:
+                        type: string
+                        description: VPC IPAM pool ID.
+                      subnetPoolId:
+                        type: string
+                        description: Subnet IPAM pool ID.
+                      subnets:
+                        type: object
+                        description: Map of subnet name to allocated CIDR.
+                        x-kubernetes-preserve-unknown-fields: true
+                  ipv6Ula:
+                    type: object
+                    description: IPv6 ULA allocation status.
+                    properties:
+                      ready:
+                        type: boolean
+                      cidr:
+                        type: string
+                        description: Allocated VPC IPv6 ULA CIDR.
+                      vpcPoolId:
+                        type: string
+                        description: VPC IPAM pool ID.
+                      subnetPoolId:
+                        type: string
+                        description: Subnet IPAM pool ID.
+                      subnets:
+                        type: object
+                        description: Map of subnet name to allocated CIDR.
+                        x-kubernetes-preserve-unknown-fields: true
               network:
                 type: object
                 properties:

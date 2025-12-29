@@ -22,8 +22,8 @@ spec:
     vpcIdRef:
       name: {{ $networkName }}
     ipv6IpamPoolId: {{ $ulaIpamPoolId }}
-    {{- if $ulaCidr }}
-    ipv6CidrBlock: {{ $ulaCidr }}
+    {{- if $effectiveUlaCidr }}
+    ipv6CidrBlock: {{ $effectiveUlaCidr }}
     {{- end }}
   providerConfigRef:
     name: {{ $providerConfigName }}

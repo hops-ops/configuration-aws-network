@@ -1,7 +1,8 @@
 # code: language=yaml
 
-# Public Subnets
+# Public Subnets (only render when CIDR is available)
 {{- range $subnet := $publicSubnets }}
+{{- if ne $subnet.cidr "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
@@ -57,9 +58,11 @@ spec:
       name: {{ $subnet.name }}
 {{- end }}
 {{- end }}
+{{- end }}
 
-# Private Subnets
+# Private Subnets (only render when CIDR is available)
 {{- range $subnet := $privateSubnets }}
+{{- if ne $subnet.cidr "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
@@ -113,5 +116,6 @@ spec:
     kind: Subnet
     resourceRef:
       name: {{ $subnet.name }}
+{{- end }}
 {{- end }}
 {{- end }}

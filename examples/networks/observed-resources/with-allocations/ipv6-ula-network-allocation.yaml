@@ -1,0 +1,18 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: IPv6ULANetworkAllocation
+metadata:
+  name: with-allocations-ipv6-ula
+  annotations:
+    crossplane.io/composition-resource-name: ipv6-ula-network-allocation
+status:
+  ready: true
+  cidr: "fd00:1234:5678::/48"
+  vpcPoolId: ipam-pool-vpc-ipv6-0123456789abcdef0
+  subnetPoolId: ipam-pool-subnet-ipv6-0123456789abcdef0
+  subnets:
+    public-a: "fd00:1234:5678:0::/64"
+    public-b: "fd00:1234:5678:1::/64"
+    public-c: "fd00:1234:5678:2::/64"
+    private-a: "fd00:1234:5678:100::/64"
+    private-b: "fd00:1234:5678:101::/64"
+    private-c: "fd00:1234:5678:102::/64"

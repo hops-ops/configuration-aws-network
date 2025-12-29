@@ -1,0 +1,18 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: IPv4NetworkAllocation
+metadata:
+  name: with-allocations-ipv4
+  annotations:
+    crossplane.io/composition-resource-name: ipv4-network-allocation
+status:
+  ready: true
+  cidr: "10.0.0.0/16"
+  vpcPoolId: ipam-pool-vpc-0123456789abcdef0
+  subnetPoolId: ipam-pool-subnet-0123456789abcdef0
+  subnets:
+    public-a: "10.0.0.0/24"
+    public-b: "10.0.1.0/24"
+    public-c: "10.0.2.0/24"
+    private-a: "10.0.16.0/20"
+    private-b: "10.0.32.0/20"
+    private-c: "10.0.48.0/20"

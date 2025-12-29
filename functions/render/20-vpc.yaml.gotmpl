@@ -1,6 +1,8 @@
 # code: language=yaml
 
-# VPC with explicit IPv4 CIDR and optional Amazon-provided IPv6
+# VPC with IPv4 CIDR (explicit or from allocation) and optional Amazon-provided IPv6
+# Only render if we have a CIDR available
+{{ if ne $effectiveVpcCidr "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPC
@@ -16,7 +18,7 @@ spec:
     region: {{ $awsRegion }}
     enableDnsHostnames: {{ $enableDnsHostnames }}
     enableDnsSupport: {{ $enableDnsSupport }}
-    cidrBlock: {{ $vpcCidr }}
+    cidrBlock: {{ $effectiveVpcCidr }}
     {{- if $amazonIpv6Enabled }}
     assignGeneratedIpv6CidrBlock: true
     {{- end }}
@@ -29,3 +31,4 @@ spec:
   providerConfigRef:
     name: {{ $providerConfigName }}
     kind: {{ $providerConfigKind }}
+{{ end }}
