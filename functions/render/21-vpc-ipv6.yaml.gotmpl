@@ -26,8 +26,8 @@ spec:
     ipv6CidrBlock: {{ $ulaCidr }}
     {{- end }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: VPC protects IPv6 CIDR association
 {{- if $ipv6AssocReady }}

@@ -1,64 +1,49 @@
 # code: language=yaml
 
 # Public Subnets
-# CIDR sources (in priority order):
-# 1. Subnet pool allocation (cidr.ipv4.ipam.subnetPool.enabled) - from VPCIpamPoolCidrAllocation
-# 2. Calculated from VPC CIDR (cidr.ipv4.ipam) - deterministic math
-# 3. Manual (cidr.ipv4.manual) - explicit user-provided CIDRs
-{{- range $azConfig := $azConfigs }}
-{{- with $azConfig.public }}
-{{- $subnetCidr := "" }}
-{{- if $useSubnetPool }}
-  {{- $subnetCidr = get $allocatedSubnetCidrs .resourceName }}
-{{- else if $useIpv4Ipam }}
-  {{- $subnetCidr = get $calculatedSubnetCidrs .resourceName }}
-{{- else if $useIpv4Manual }}
-  {{- range $manualPublicSubnets }}
-    {{- if eq .availabilityZone $azConfig.suffix }}
-      {{- $subnetCidr = .cidr }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- $needsIpamCidr := or $useSubnetPool $useIpv4Ipam }}
-{{- if or (not $needsIpamCidr) $subnetCidr }}
+{{- range $subnet := $publicSubnets }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
 metadata:
-  name: {{ .name }}
+  name: {{ $subnet.name }}
   annotations:
-    {{ setResourceNameAnnotation .resourceName }}
+    {{ setResourceNameAnnotation $subnet.resourceName }}
   labels:
-    {{ .labels | toYaml | nindent 4 }}
+    {{ $subnet.labels | toYaml | nindent 4 }}
 spec:
   managementPolicies: {{ $managementPolicies | toJson }}
   forProvider:
     region: {{ $awsRegion }}
-    availabilityZone: {{ $azConfig.az }}
+    availabilityZone: {{ $subnet.az }}
     vpcIdRef:
       name: {{ $networkName }}
-    mapPublicIpOnLaunch: {{ .mapPublicIpOnLaunch }}
-    cidrBlock: {{ $subnetCidr }}
+    mapPublicIpOnLaunch: {{ $subnet.mapPublicIpOnLaunch }}
+    cidrBlock: {{ $subnet.cidr }}
     {{- if $hasIpv6 }}
     assignIpv6AddressOnCreation: true
-    ipv6Native: {{ $isIpv6Only }}
+    {{- if $subnet.ipv6UlaCidr }}
+    ipv6CidrBlock: {{ $subnet.ipv6UlaCidr }}
+    {{- else if $subnet.ipv6AmazonCidr }}
+    ipv6CidrBlock: {{ $subnet.ipv6AmazonCidr }}
+    {{- end }}
     {{- end }}
     tags:
-      {{ .tags | toYaml | nindent 6 }}
+      {{ $subnet.tags | toYaml | nindent 6 }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: VPC protects public subnet
-{{ $subnetReady := get $resourceReadiness .resourceName | default false }}
+{{ $subnetReady := get $resourceReadiness $subnet.resourceName | default false }}
 {{- if and $vpcReady $subnetReady }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $networkName }}-vpc-protects-{{ .resourceName }}
+  name: {{ $networkName }}-vpc-protects-{{ $subnet.resourceName }}
   annotations:
-    {{ setResourceNameAnnotation (printf "usage-vpc-%s" .resourceName) }}
+    {{ setResourceNameAnnotation (printf "usage-vpc-%s" $subnet.resourceName) }}
 spec:
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -69,67 +54,54 @@ spec:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: Subnet
     resourceRef:
-      name: {{ .name }}
-{{- end }}
-{{- end }}
+      name: {{ $subnet.name }}
 {{- end }}
 {{- end }}
 
 # Private Subnets
-{{- range $azConfig := $azConfigs }}
-{{- with $azConfig.private }}
-{{- $subnetCidr := "" }}
-{{- if $useSubnetPool }}
-  {{- $subnetCidr = get $allocatedSubnetCidrs .resourceName }}
-{{- else if $useIpv4Ipam }}
-  {{- $subnetCidr = get $calculatedSubnetCidrs .resourceName }}
-{{- else if $useIpv4Manual }}
-  {{- range $manualPrivateSubnets }}
-    {{- if eq .availabilityZone $azConfig.suffix }}
-      {{- $subnetCidr = .cidr }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-{{- $needsIpamCidr := or $useSubnetPool $useIpv4Ipam }}
-{{- if or (not $needsIpamCidr) $subnetCidr }}
+{{- range $subnet := $privateSubnets }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
 metadata:
-  name: {{ .name }}
+  name: {{ $subnet.name }}
   annotations:
-    {{ setResourceNameAnnotation .resourceName }}
+    {{ setResourceNameAnnotation $subnet.resourceName }}
   labels:
-    {{ .labels | toYaml | nindent 4 }}
+    {{ $subnet.labels | toYaml | nindent 4 }}
 spec:
   managementPolicies: {{ $managementPolicies | toJson }}
   forProvider:
     region: {{ $awsRegion }}
-    availabilityZone: {{ $azConfig.az }}
+    availabilityZone: {{ $subnet.az }}
     vpcIdRef:
       name: {{ $networkName }}
-    mapPublicIpOnLaunch: {{ .mapPublicIpOnLaunch }}
-    cidrBlock: {{ $subnetCidr }}
+    mapPublicIpOnLaunch: {{ $subnet.mapPublicIpOnLaunch }}
+    cidrBlock: {{ $subnet.cidr }}
     {{- if $hasIpv6 }}
     assignIpv6AddressOnCreation: true
-    ipv6Native: {{ $isIpv6Only }}
+    {{- if $subnet.ipv6UlaCidr }}
+    ipv6CidrBlock: {{ $subnet.ipv6UlaCidr }}
+    {{- else if $subnet.ipv6AmazonCidr }}
+    ipv6CidrBlock: {{ $subnet.ipv6AmazonCidr }}
+    {{- end }}
     {{- end }}
     tags:
-      {{ .tags | toYaml | nindent 6 }}
+      {{ $subnet.tags | toYaml | nindent 6 }}
   providerConfigRef:
-    kind: ProviderConfig
-    name: {{ $awsProviderConfig }}
+    name: {{ $providerConfigName }}
+    kind: {{ $providerConfigKind }}
 
 # Usage: VPC protects private subnet
-{{ $subnetReady := get $resourceReadiness .resourceName | default false }}
+{{ $subnetReady := get $resourceReadiness $subnet.resourceName | default false }}
 {{- if and $vpcReady $subnetReady }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $networkName }}-vpc-protects-{{ .resourceName }}
+  name: {{ $networkName }}-vpc-protects-{{ $subnet.resourceName }}
   annotations:
-    {{ setResourceNameAnnotation (printf "usage-vpc-%s" .resourceName) }}
+    {{ setResourceNameAnnotation (printf "usage-vpc-%s" $subnet.resourceName) }}
 spec:
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -140,8 +112,6 @@ spec:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: Subnet
     resourceRef:
-      name: {{ .name }}
-{{- end }}
-{{- end }}
+      name: {{ $subnet.name }}
 {{- end }}
 {{- end }}

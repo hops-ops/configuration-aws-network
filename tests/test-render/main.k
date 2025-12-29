@@ -1,7 +1,7 @@
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
 
 _items = [
-    # Test minimal network rendering (no NAT, dual-stack with Amazon IPv6)
+    # Test minimal network rendering
     metav1alpha1.CompositionTest {
         metadata.name: "test-network-minimal"
         spec: {
@@ -11,23 +11,23 @@ _items = [
             timeoutSeconds: 60
             validate: True
             assertResources: [
-                # VPC should be created with IPAM pool selector and IPv6
+                # VPC should be created
                 {
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "VPC"
                     metadata: {
-                        name: "my-vpc"
+                        name: "minimal"
                     }
                     spec: {
                         forProvider: {
                             region: "us-east-1"
+                            cidrBlock: "10.1.0.0/16"
                             enableDnsHostnames: True
                             enableDnsSupport: True
-                            assignGeneratedIpv6CidrBlock: True
                         }
                         providerConfigRef: {
+                            name: "default"
                             kind: "ProviderConfig"
-                            name: "my-cluster"
                         }
                     }
                 }
@@ -36,15 +36,7 @@ _items = [
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "InternetGateway"
                     metadata: {
-                        name: "my-vpc"
-                    }
-                }
-                # Egress-only IGW for IPv6 private egress
-                {
-                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "EgressOnlyInternetGateway"
-                    metadata: {
-                        name: "my-vpc"
+                        name: "minimal"
                     }
                 }
                 # Public route table
@@ -52,18 +44,33 @@ _items = [
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "RouteTable"
                     metadata: {
-                        name: "my-vpc-public"
+                        name: "minimal-public"
+                    }
+                }
+                # Private route tables
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "RouteTable"
+                    metadata: {
+                        name: "minimal-private-rt-a"
+                    }
+                }
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "RouteTable"
+                    metadata: {
+                        name: "minimal-private-rt-b"
                     }
                 }
             ]
         }
     },
-    # Test private-only network (no public subnets, no IGW, no NAT)
+    # Test standard network with NAT
     metav1alpha1.CompositionTest {
-        metadata.name: "test-network-private-only"
+        metadata.name: "test-network-standard"
         spec: {
             compositionPath: "apis/networks/composition.yaml"
-            xrPath: "examples/networks/private-only.yaml"
+            xrPath: "examples/networks/standard.yaml"
             xrdPath: "apis/networks/definition.yaml"
             timeoutSeconds: 60
             validate: True
@@ -73,57 +80,21 @@ _items = [
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "VPC"
                     metadata: {
-                        name: "isolated-vpc"
-                    }
-                }
-                # Private route tables should exist
-                {
-                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "RouteTable"
-                    metadata: {
-                        name: "isolated-vpc-private-rt-a"
-                    }
-                }
-            ]
-        }
-    },
-    # Test dual-stack network with NAT
-    metav1alpha1.CompositionTest {
-        metadata.name: "test-network-dual-stack"
-        spec: {
-            compositionPath: "apis/networks/composition.yaml"
-            xrPath: "examples/networks/dual-stack.yaml"
-            xrdPath: "apis/networks/definition.yaml"
-            timeoutSeconds: 60
-            validate: True
-            assertResources: [
-                # VPC with IPv6 enabled
-                {
-                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "VPC"
-                    metadata: {
-                        name: "ipv6-vpc"
+                        name: "standard"
                     }
                     spec: {
                         forProvider: {
-                            assignGeneratedIpv6CidrBlock: True
+                            region: "us-east-1"
+                            cidrBlock: "10.2.0.0/16"
                         }
                     }
                 }
-                # Egress-only IGW for IPv6 private egress
-                {
-                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "EgressOnlyInternetGateway"
-                    metadata: {
-                        name: "ipv6-vpc"
-                    }
-                }
-                # NAT Gateway (SingleAz by default)
+                # NAT Gateway (SingleAz)
                 {
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "NATGateway"
                     metadata: {
-                        name: "ipv6-vpc-nat-a"
+                        name: "standard-nat-a"
                     }
                 }
                 # EIP for NAT
@@ -131,52 +102,18 @@ _items = [
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "EIP"
                     metadata: {
-                        name: "ipv6-vpc-nat-eip-a"
+                        name: "standard-nat-eip-a"
                     }
                 }
             ]
         }
     },
-    # Test manual CIDR network
+    # Test dual-stack with ULA IPv6
     metav1alpha1.CompositionTest {
-        metadata.name: "test-network-manual-cidr"
+        metadata.name: "test-network-dual-stack-ula"
         spec: {
             compositionPath: "apis/networks/composition.yaml"
-            xrPath: "examples/networks/manual-cidr.yaml"
-            xrdPath: "apis/networks/definition.yaml"
-            timeoutSeconds: 60
-            validate: True
-            assertResources: [
-                # VPC with explicit CIDR block (no IPAM)
-                {
-                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "VPC"
-                    metadata: {
-                        name: "manual-vpc"
-                    }
-                    spec: {
-                        forProvider: {
-                            cidrBlock: "172.16.0.0/16"
-                        }
-                    }
-                }
-                # NAT Gateway should exist (SingleAz)
-                {
-                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "NATGateway"
-                    metadata: {
-                        name: "manual-vpc-nat-a"
-                    }
-                }
-            ]
-        }
-    },
-    # Test enterprise network with Transit Gateway and Flow Logs
-    metav1alpha1.CompositionTest {
-        metadata.name: "test-network-enterprise"
-        spec: {
-            compositionPath: "apis/networks/composition.yaml"
-            xrPath: "examples/networks/enterprise.yaml"
+            xrPath: "examples/networks/dual-stack-ula.yaml"
             xrdPath: "apis/networks/definition.yaml"
             timeoutSeconds: 60
             validate: True
@@ -186,23 +123,89 @@ _items = [
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "VPC"
                     metadata: {
-                        name: "prod-vpc"
+                        name: "dual-stack"
+                    }
+                    spec: {
+                        forProvider: {
+                            cidrBlock: "10.3.0.0/16"
+                        }
                     }
                 }
-                # Transit Gateway attachment
+                # Egress-only IGW for IPv6 private egress
                 {
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "TransitGatewayVPCAttachment"
+                    kind: "EgressOnlyInternetGateway"
                     metadata: {
-                        name: "prod-vpc-tgw-attachment"
+                        name: "dual-stack"
                     }
                 }
-                # Flow logs
+                # NAT Gateway
                 {
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
-                    kind: "FlowLog"
+                    kind: "NATGateway"
                     metadata: {
-                        name: "prod-vpc-flow-log"
+                        name: "dual-stack-nat-a"
+                    }
+                }
+            ]
+        }
+    },
+    # Test dual-stack with Amazon-provided IPv6
+    metav1alpha1.CompositionTest {
+        metadata.name: "test-network-dual-stack-amazon"
+        spec: {
+            compositionPath: "apis/networks/composition.yaml"
+            xrPath: "examples/networks/dual-stack-amazon.yaml"
+            xrdPath: "apis/networks/definition.yaml"
+            timeoutSeconds: 60
+            validate: True
+            assertResources: [
+                # VPC with Amazon IPv6 enabled
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "VPC"
+                    metadata: {
+                        name: "dual-stack-amazon"
+                    }
+                    spec: {
+                        forProvider: {
+                            cidrBlock: "10.4.0.0/16"
+                            assignGeneratedIpv6CidrBlock: True
+                        }
+                    }
+                }
+                # Egress-only IGW for IPv6 private egress
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "EgressOnlyInternetGateway"
+                    metadata: {
+                        name: "dual-stack-amazon"
+                    }
+                }
+            ]
+        }
+    },
+    # Test high-availability network with HA NAT
+    metav1alpha1.CompositionTest {
+        metadata.name: "test-network-high-availability"
+        spec: {
+            compositionPath: "apis/networks/composition.yaml"
+            xrPath: "examples/networks/high-availability.yaml"
+            xrdPath: "apis/networks/definition.yaml"
+            timeoutSeconds: 60
+            validate: True
+            assertResources: [
+                # VPC
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "VPC"
+                    metadata: {
+                        name: "high-availability"
+                    }
+                    spec: {
+                        forProvider: {
+                            cidrBlock: "10.5.0.0/16"
+                        }
                     }
                 }
                 # HA NAT (3 gateways for 3 AZs)
@@ -210,21 +213,43 @@ _items = [
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "NATGateway"
                     metadata: {
-                        name: "prod-vpc-nat-a"
+                        name: "high-availability-nat-a"
                     }
                 }
                 {
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "NATGateway"
                     metadata: {
-                        name: "prod-vpc-nat-b"
+                        name: "high-availability-nat-b"
                     }
                 }
                 {
                     apiVersion: "ec2.aws.m.upbound.io/v1beta1"
                     kind: "NATGateway"
                     metadata: {
-                        name: "prod-vpc-nat-c"
+                        name: "high-availability-nat-c"
+                    }
+                }
+                # 3 EIPs for HA NAT
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "EIP"
+                    metadata: {
+                        name: "high-availability-nat-eip-a"
+                    }
+                }
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "EIP"
+                    metadata: {
+                        name: "high-availability-nat-eip-b"
+                    }
+                }
+                {
+                    apiVersion: "ec2.aws.m.upbound.io/v1beta1"
+                    kind: "EIP"
+                    metadata: {
+                        name: "high-availability-nat-eip-c"
                     }
                 }
             ]

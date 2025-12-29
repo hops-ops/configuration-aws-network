@@ -31,13 +31,10 @@ jobs:
       examples: |
         [
           { "example": "examples/networks/minimal.yaml" },
-          { "example": "examples/networks/minimal.yaml", "observed_resources": "examples/test/mocks/observed-resources/minimal/steps/1" },
-          { "example": "examples/networks/private-only.yaml" },
-          { "example": "examples/networks/manual-cidr.yaml" },
-          { "example": "examples/networks/dual-stack.yaml" },
-          { "example": "examples/networks/enterprise.yaml" },
-          { "example": "examples/networks/ipam-subnets.yaml" },
-          { "example": "examples/networks/ipam-subnets.yaml", "observed_resources": "examples/test/mocks/observed-resources/ipam-subnets/steps/1" }
+          { "example": "examples/networks/standard.yaml" },
+          { "example": "examples/networks/dual-stack-ula.yaml" },
+          { "example": "examples/networks/dual-stack-amazon.yaml" },
+          { "example": "examples/networks/high-availability.yaml" }
         ]
       api_path: apis/networks
       error_on_missing_schemas: true

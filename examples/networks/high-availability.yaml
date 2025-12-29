@@ -4,13 +4,12 @@ metadata:
   name: high-availability
   namespace: infra
 spec:
-  aws:
-    providerConfig: default
-    config:
-      region: us-east-1
-      tags:
-        Environment: production
-        HighAvailability: "true"
+  providerConfigRef:
+    name: default
+  region: us-east-1
+  tags:
+    Environment: production
+    HighAvailability: "true"
 
   vpc:
     cidr: "10.5.0.0/16"

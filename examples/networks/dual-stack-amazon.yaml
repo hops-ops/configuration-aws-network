@@ -4,10 +4,9 @@ metadata:
   name: dual-stack-amazon
   namespace: infra
 spec:
-  aws:
-    providerConfig: default
-    config:
-      region: us-east-1
+  providerConfigRef:
+    name: default
+  region: us-east-1
 
   vpc:
     cidr: "10.4.0.0/16"

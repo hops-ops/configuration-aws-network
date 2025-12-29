@@ -4,12 +4,11 @@ metadata:
   name: dual-stack
   namespace: infra
 spec:
-  aws:
-    providerConfig: default
-    config:
-      region: us-east-1
-      tags:
-        Environment: production
+  providerConfigRef:
+    name: default
+  region: us-east-1
+  tags:
+    Environment: production
 
   vpc:
     cidr: "10.3.0.0/16"

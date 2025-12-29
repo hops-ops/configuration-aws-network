@@ -4,14 +4,13 @@ metadata:
   name: standard
   namespace: infra
 spec:
-  aws:
-    providerConfig: default
-    config:
-      region: us-east-1
-      accountId: "123456789012"
-      tags:
-        Environment: production
-        Team: platform
+  providerConfigRef:
+    name: default
+  region: us-east-1
+  accountId: "123456789012"
+  tags:
+    Environment: production
+    Team: platform
 
   vpc:
     cidr: "10.2.0.0/16"

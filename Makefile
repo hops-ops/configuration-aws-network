@@ -12,14 +12,10 @@ E2E_TESTS := $(wildcard tests/e2etest-*)
 # Format: example_path::observed_resources_path (observed_resources_path is optional)
 EXAMPLES := \
     examples/networks/minimal.yaml:: \
-    examples/networks/minimal.yaml::examples/test/mocks/observed-resources/minimal/steps/1 \
-    examples/networks/dual-stack.yaml:: \
-    examples/networks/e2e.yaml:: \
-    examples/networks/enterprise.yaml:: \
-    examples/networks/manual-cidr.yaml:: \
-    examples/networks/private-only.yaml:: \
-    examples/networks/ipam-subnets.yaml:: \
-    examples/networks/ipam-subnets.yaml::examples/test/mocks/observed-resources/ipam-subnets/steps/1
+    examples/networks/standard.yaml:: \
+    examples/networks/dual-stack-ula.yaml:: \
+    examples/networks/dual-stack-amazon.yaml:: \
+    examples/networks/high-availability.yaml::
 
 clean:
 	rm -rf _output

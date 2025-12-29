@@ -12,10 +12,14 @@ _base64_creds = base64.encode(_creds)
 # =============================================================================
 # Persistent infrastructure - update these if re-creating the test environment
 # =============================================================================
+#
+# IPAM Pools and Scopes - persistent infrastructure from aws-ipam e2e test
+# To get scope IDs, run:
+#   aws ec2 describe-ipam-scopes --query 'IpamScopes[*].[IpamScopeId,IpamScopeType]' --output table
+#
+# Per-network child pools require scopeId when subnetPool.enabled is true
+_ipam_private_scope_id = "ipam-scope-0d6a6ca6fedc8e4e3"  # Private scope for IPv4 and IPv6 ULA
 
-# IPAM Pools - persistent infrastructure from aws-ipam e2e test
-# Note: We only need the parent pools - per-network child pools are created
-# automatically when subnetPool.enabled is true
 _ipv4_private_pool_id = "ipam-pool-0a82c73b97dc0dabb"
 _ipv6_private_pool_id = "ipam-pool-0decd6c5216660c74"
 
@@ -54,6 +58,7 @@ _items = [
                             ipv4: {
                                 ipam: {
                                     poolId: _ipv4_private_pool_id
+                                    scopeId: _ipam_private_scope_id
                                     # Per-network child pool is created automatically
                                     subnetPool: {
                                         enabled: True
@@ -65,6 +70,7 @@ _items = [
                                 enabled: True
                                 ipam: {
                                     poolId: _ipv6_private_pool_id
+                                    scopeId: _ipam_private_scope_id
                                     # Per-network child pool is created automatically
                                     subnetPool: {
                                         enabled: True

@@ -13,10 +13,18 @@ spec:
     package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
     version: '>=v0.6.0'
   description: |
-    Network creates IPAM-backed (or manual CIDR) AWS VPCs with subnets, routing,
-    NAT gateways, and optional enterprise features. Supports IPv4, IPv6, and
-    dual-stack configurations for modern workloads including IPv6 EKS.
+    Network creates AWS VPCs with subnets, routing, NAT gateways, and optional
+    enterprise features. Supports IPv4, IPv6, and dual-stack configurations.
   license: Apache-2.0
   maintainer: Hops Platform Team <platform@hops.ops.com.ai>
+  readme: |
+    # configuration-network
+
+    AWS VPC networking configuration with support for:
+    - IPv4, IPv6 (Amazon-provided or ULA), and dual-stack
+    - Public and private subnets across multiple AZs
+    - NAT gateways (single-AZ or highly-available)
+    - Internet and Egress-Only Internet Gateways
+    - VPC Flow Logs
   repository: ghcr.io/hops-ops/configuration-network
   source: github.com/hops-ops/configuration-network
