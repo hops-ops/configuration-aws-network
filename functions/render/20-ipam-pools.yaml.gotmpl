@@ -25,7 +25,7 @@ spec:
   forProvider:
     addressFamily: ipv4
     ipamScopeId: {{ $state.ipam.ipv4.scopeId }}
-    sourceIpamPoolId: {{ $state.ipam.ipv4.regionalPoolId }}
+    sourceIpamPoolId: {{ $state.ipam.ipv4.poolId }}
     allocationMinNetmaskLength: 20
     allocationMaxNetmaskLength: 28
     allocationDefaultNetmaskLength: 24
@@ -60,7 +60,7 @@ spec:
   forProvider:
     addressFamily: ipv6
     ipamScopeId: {{ $state.ipam.ipv6Ula.scopeId }}
-    sourceIpamPoolId: {{ $state.ipam.ipv6Ula.regionalPoolId }}
+    sourceIpamPoolId: {{ $state.ipam.ipv6Ula.poolId }}
     allocationMinNetmaskLength: 64
     allocationMaxNetmaskLength: 64
     allocationDefaultNetmaskLength: 64

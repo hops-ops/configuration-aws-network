@@ -3,6 +3,7 @@ import datetime
 import file
 import math
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
+import models.ai.com.ops.hops.aws.v1alpha1 as hops
 
 _now = str(int(math.floor(datetime.ticks())))
 
@@ -35,10 +36,8 @@ _items = [
             crossplane.autoUpgrade.channel: "Rapid"
             defaultConditions: ["Ready"]
             manifests: [
-                # Network XR - uses untyped dict to avoid KCL schema issues with pass-through fields
-                {
-                    apiVersion: "aws.hops.ops.com.ai/v1alpha1"
-                    kind: "Network"
+                # Network XR - using typed model
+                hops.Network{
                     metadata: {
                         name: _test_network_name
                         namespace: "default"
@@ -52,11 +51,11 @@ _items = [
                             "e2etest": "true"
                             "test-run": _now
                         }
-                        # Use networkAllocations to auto-allocate CIDRs from IPAM
-                        networkAllocations: {
+                        # Use IPAM to auto-allocate CIDRs
+                        ipam: {
                             ipv4: {
                                 enabled: True
-                                regionalPoolId: _ipv4_private_pool_id
+                                poolId: _ipv4_private_pool_id
                                 scopeId: _ipam_private_scope_id
                                 vpc: {
                                     netmaskLength: 16
@@ -75,20 +74,20 @@ _items = [
                             }
                             ipv6Ula: {
                                 enabled: True
-                                regionalPoolId: _ipv6_private_pool_id
+                                poolId: _ipv6_private_pool_id
                                 scopeId: _ipam_private_scope_id
                                 vpc: {
-                                    netmaskLength: 64
+                                    netmaskLength: 48
                                 }
                                 subnets: {
                                     availabilityZones: ["a", "b"]
                                     public: {
                                         enabled: True
-                                        netmaskLength: 72
+                                        netmaskLength: 64
                                     }
                                     private: {
                                         enabled: True
-                                        netmaskLength: 72
+                                        netmaskLength: 64
                                     }
                                 }
                             }

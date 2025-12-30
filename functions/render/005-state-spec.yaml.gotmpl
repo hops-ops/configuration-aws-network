@@ -50,12 +50,12 @@
 # ==============================================================================
 # IPAM Allocation Configuration (from spec)
 # ==============================================================================
-{{ $networkAllocations := $spec.networkAllocations | default (dict) }}
+{{ $ipamConfig := $spec.ipam | default (dict) }}
 
 # IPv4 allocation
-{{ $ipv4Allocation := $networkAllocations.ipv4 | default (dict) }}
+{{ $ipv4Allocation := $ipamConfig.ipv4 | default (dict) }}
 {{ $ipv4AllocationEnabled := $ipv4Allocation.enabled | default false }}
-{{ $ipv4RegionalPoolId := $ipv4Allocation.regionalPoolId | default "" }}
+{{ $ipv4PoolId := $ipv4Allocation.poolId | default "" }}
 {{ $ipv4ScopeId := $ipv4Allocation.scopeId | default "" }}
 {{ $ipv4Locale := $ipv4Allocation.locale | default $awsRegion }}
 {{ $ipv4AllocVpc := $ipv4Allocation.vpc | default (dict) }}
@@ -70,9 +70,9 @@
 {{ $ipv4AllocPrivateNetmask := $ipv4AllocPrivate.netmaskLength | default 20 }}
 
 # IPv6 ULA allocation
-{{ $ipv6UlaAllocation := $networkAllocations.ipv6Ula | default (dict) }}
+{{ $ipv6UlaAllocation := $ipamConfig.ipv6Ula | default (dict) }}
 {{ $ipv6UlaAllocationEnabled := $ipv6UlaAllocation.enabled | default false }}
-{{ $ipv6UlaRegionalPoolId := $ipv6UlaAllocation.regionalPoolId | default "" }}
+{{ $ipv6UlaPoolId := $ipv6UlaAllocation.poolId | default "" }}
 {{ $ipv6UlaScopeId := $ipv6UlaAllocation.scopeId | default "" }}
 {{ $ipv6UlaLocale := $ipv6UlaAllocation.locale | default $awsRegion }}
 {{ $ipv6UlaAllocVpc := $ipv6UlaAllocation.vpc | default (dict) }}

@@ -23,7 +23,7 @@ spec:
     enableDnsSupport: {{ $state.vpc.enableDnsSupport }}
     {{- if $state.ipam.ipv4.enabled }}
     # Allocate IPv4 CIDR from IPAM pool
-    ipv4IpamPoolId: {{ $state.ipam.ipv4.regionalPoolId }}
+    ipv4IpamPoolId: {{ $state.ipam.ipv4.poolId }}
     ipv4NetmaskLength: {{ $state.ipam.ipv4.vpcNetmask }}
     {{- else }}
     # Use explicit CIDR
@@ -34,7 +34,7 @@ spec:
     {{- end }}
     {{- if $state.ipam.ipv6Ula.enabled }}
     # Allocate IPv6 ULA CIDR from IPAM pool
-    ipv6IpamPoolId: {{ $state.ipam.ipv6Ula.regionalPoolId }}
+    ipv6IpamPoolId: {{ $state.ipam.ipv6Ula.poolId }}
     ipv6NetmaskLength: {{ $state.ipam.ipv6Ula.vpcNetmask }}
     {{- else if and $state.ipv6.ula.enabled $state.ipv6.ula.ipamPoolId }}
     # Use explicit ULA IPAM pool reference

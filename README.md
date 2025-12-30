@@ -53,10 +53,10 @@ spec:
   region: us-east-1
   providerConfigRef:
     name: default
-  networkAllocations:
+  ipam:
     ipv4:
       enabled: true
-      regionalPoolId: ipam-pool-0123456789abcdef0
+      poolId: ipam-pool-0123456789abcdef0
       scopeId: ipam-scope-0123456789abcdef0
       vpc:
         netmaskLength: 16
@@ -70,7 +70,7 @@ spec:
           netmaskLength: 20
     ipv6Ula:
       enabled: true
-      regionalPoolId: ipam-pool-0fedcba9876543210
+      poolId: ipam-pool-0fedcba9876543210
       scopeId: ipam-scope-0fedcba9876543210
       vpc:
         netmaskLength: 48
@@ -367,10 +367,10 @@ spec:
     environment: production
     compliance: soc2
     cost-center: "12345"
-  networkAllocations:
+  ipam:
     ipv4:
       enabled: true
-      regionalPoolId: ipam-pool-enterprise123
+      poolId: ipam-pool-enterprise123
       scopeId: ipam-scope-enterprise456
       vpc:
         netmaskLength: 16
@@ -384,7 +384,7 @@ spec:
           netmaskLength: 18
     ipv6Ula:
       enabled: true
-      regionalPoolId: ipam-pool-ipv6-enterprise
+      poolId: ipam-pool-ipv6-enterprise
       scopeId: ipam-scope-ipv6-enterprise
       vpc:
         netmaskLength: 48
@@ -448,7 +448,7 @@ spec:
 | `ipv6.amazonProvided.enabled` | boolean | No | Request Amazon-provided /56 IPv6 |
 | `forProvider` | object | No | Pass-through for VPC forProvider fields |
 
-*Required unless using `networkAllocations.ipv4`
+*Required unless using `ipam.ipv4`
 
 ### spec.subnets[]
 
@@ -461,14 +461,14 @@ spec:
 | `ipv6.ulaCidr` | string | No | ULA IPv6 CIDR for subnet |
 | `ipv6.amazonProvidedCidr` | string | No | Amazon IPv6 CIDR for subnet |
 
-*Required unless using `networkAllocations.ipv4`
+*Required unless using `ipam.ipv4`
 
-### spec.networkAllocations
+### spec.ipam
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `ipv4.enabled` | boolean | Enable IPv4 CIDR allocation from IPAM |
-| `ipv4.regionalPoolId` | string | Regional IPAM pool ID |
+| `ipv4.poolId` | string | IPAM pool ID |
 | `ipv4.scopeId` | string | IPAM scope ID |
 | `ipv4.vpc.netmaskLength` | int | VPC netmask (default: 16) |
 | `ipv4.subnets.availabilityZones` | []string | AZs for auto-generated subnets |
@@ -510,7 +510,7 @@ The Network exposes observed state in `status`:
 ```yaml
 status:
   ready: true
-  allocations:  # Only present when using networkAllocations
+  allocations:  # Only present when using ipam
     ipv4:
       ready: true
       cidr: "10.100.0.0/16"

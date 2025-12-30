@@ -18,7 +18,7 @@ status:
     ipv4:
       ready: {{ and $observed.vpc.ready $observed.ipam.ipv4.subnetPoolReady }}
       cidr: {{ $observed.vpc.cidr | default "Pending" }}
-      vpcPoolId: {{ $state.ipam.ipv4.regionalPoolId | default "Pending" }}
+      vpcPoolId: {{ $state.ipam.ipv4.poolId | default "Pending" }}
       subnetPoolId: {{ $observed.ipam.ipv4.subnetPoolId | default "Pending" }}
       {{- if gt (len $observed.ipam.ipv4.allocations) 0 }}
       subnets:
@@ -29,7 +29,7 @@ status:
     ipv6Ula:
       ready: {{ and $observed.vpc.ready $observed.ipam.ipv6Ula.subnetPoolReady }}
       cidr: {{ $observed.vpc.ipv6Cidr | default "Pending" }}
-      vpcPoolId: {{ $state.ipam.ipv6Ula.regionalPoolId | default "Pending" }}
+      vpcPoolId: {{ $state.ipam.ipv6Ula.poolId | default "Pending" }}
       subnetPoolId: {{ $observed.ipam.ipv6Ula.subnetPoolId | default "Pending" }}
       {{- if gt (len $observed.ipam.ipv6Ula.allocations) 0 }}
       subnets:

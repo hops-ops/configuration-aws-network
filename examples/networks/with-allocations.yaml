@@ -13,11 +13,11 @@ spec:
     Team: platform
 
   # Use IPAM allocations instead of explicit CIDRs
-  networkAllocations:
+  ipam:
     ipv4:
       enabled: true
-      # Regional pool ID from aws-ipam status
-      regionalPoolId: ipam-pool-0123456789abcdef0
+      # Regional pool id
+      poolId: ipam-pool-0123456789abcdef0
       # IPAM scope ID from aws-ipam status.ipam.privateDefaultScopeId
       scopeId: ipam-scope-0123456789abcdef0
       vpc:
@@ -35,11 +35,11 @@ spec:
           netmaskLength: 20
     ipv6Ula:
       enabled: true
-      # Regional ULA pool ID from aws-ipam status
-      regionalPoolId: ipam-pool-0fedcba9876543210
+      # ULA pool ID from aws-ipam status
+      poolId: ipam-pool-0fedcba9876543210
       scopeId: ipam-scope-0fedcba9876543210
       vpc:
-        netmaskLength: 48
+        netmaskLength: 64
       subnets:
         availabilityZones:
         - a
@@ -47,10 +47,10 @@ spec:
         - c
         public:
           enabled: true
-          netmaskLength: 64
+          netmaskLength: 72
         private:
           enabled: true
-          netmaskLength: 64
+          netmaskLength: 72
 
   # VPC config (cidr will come from allocations)
   vpc: {}
