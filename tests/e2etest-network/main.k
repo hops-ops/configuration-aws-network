@@ -18,10 +18,10 @@ _base64_creds = base64.encode(_creds)
 #   aws ec2 describe-ipam-scopes --query 'IpamScopes[*].[IpamScopeId,IpamScopeType]' --output table
 #
 # Per-network child pools require scopeId when subnetPool.enabled is true
-_ipam_private_scope_id = "ipam-scope-0d6a6ca6fedc8e4e3"  # Private scope for IPv4 and IPv6 ULA
+_ipam_private_scope_id = "ipam-scope-0ba795a6462cbb518"  # Private scope for IPv4 and IPv6 ULA
 
-_ipv4_private_pool_id = "ipam-pool-0a82c73b97dc0dabb"
-_ipv6_private_pool_id = "ipam-pool-0decd6c5216660c74"
+_ipv4_private_pool_id = "ipam-pool-0607416fa3707147a"
+_ipv6_private_pool_id = "ipam-pool-0769c239ba0259975"
 
 # =============================================================================
 # Dynamic test resources - timestamped to allow concurrent test runs
