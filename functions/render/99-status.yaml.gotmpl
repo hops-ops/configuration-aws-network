@@ -28,7 +28,7 @@ status:
     {{- if $state.ipam.ipv6Ula.enabled }}
     ipv6Ula:
       ready: {{ and $observed.vpc.ready $observed.ipam.ipv6Ula.subnetPoolReady }}
-      cidr: {{ $observed.vpc.ipv6UlaCidr | default "Pending" }}
+      cidr: {{ $observed.vpc.ipv6Cidr | default "Pending" }}
       vpcPoolId: {{ $state.ipam.ipv6Ula.regionalPoolId | default "Pending" }}
       subnetPoolId: {{ $observed.ipam.ipv6Ula.subnetPoolId | default "Pending" }}
       {{- if gt (len $observed.ipam.ipv6Ula.allocations) 0 }}
@@ -44,10 +44,10 @@ status:
     cidr:
       ipv4: {{ $observed.vpc.cidr | default "Pending" }}
       {{- if $state.ipv6.ula.enabled }}
-      ipv6Ula: {{ $observed.vpc.ipv6UlaCidr | default "Pending" }}
+      ipv6Ula: {{ $observed.vpc.ipv6Cidr | default "Pending" }}
       {{- end }}
       {{- if $state.ipv6.amazon.enabled }}
-      ipv6AmazonProvided: {{ $observed.vpc.ipv6AmazonCidr | default "Pending" }}
+      ipv6AmazonProvided: {{ $observed.vpc.ipv6Cidr | default "Pending" }}
       {{- end }}
     availabilityZones:
     {{- range $az := $state.availabilityZones }}
@@ -119,5 +119,5 @@ status:
     {{- if and $state.tgw.enabled $state.tgw.id }}
     transitGatewayAttachment:
       id: {{ $observed.tgw.attachmentId | default "Pending" }}
-      state: {{ $observed.tgw.state | default "Pending" }}
+      ready: {{ $observed.tgw.ready }}
     {{- end }}

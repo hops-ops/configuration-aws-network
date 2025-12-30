@@ -51,8 +51,11 @@
 {{ $tgwStatus := $tgwResource.status | default (dict) }}
 {{ $tgwAtProvider := $tgwStatus.atProvider | default (dict) }}
 
+# Note: TransitGatewayVPCAttachment atProvider has: id, transitGatewayId, vpcId, subnetIds, arn, vpcOwnerId
+# There is no 'state' field - use readiness condition instead
 {{ $observed = merge $observed (dict "tgw" (dict
   "attachmentId" ($tgwAtProvider.id | default "")
-  "state" ($tgwAtProvider.state | default "")
+  "transitGatewayId" ($tgwAtProvider.transitGatewayId | default "")
+  "vpcId" ($tgwAtProvider.vpcId | default "")
   "ready" (get $readiness "tgw-attachment" | default false)
 )) }}

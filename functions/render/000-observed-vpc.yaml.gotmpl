@@ -41,24 +41,19 @@
 {{ $vpcCidrBlock := $vpcAtProvider.cidrBlock | default "" }}
 {{ $vpcReady := get $readiness "vpc" | default false }}
 
-# Extract Amazon-provided IPv6 CIDR (from ipv6CidrBlockAssociationSet)
-{{ $vpcAmazonIpv6Cidr := "" }}
-{{ range $vpcAtProvider.ipv6CidrBlockAssociationSet | default (list) }}
-  {{ $ipv6State := .ipv6CidrBlockState | default (dict) }}
-  {{ if eq ($ipv6State.state | default "") "associated" }}
-    {{ $vpcAmazonIpv6Cidr = .ipv6CidrBlock | default "" }}
-  {{ end }}
-{{ end }}
-
-# Extract ULA IPv6 CIDR (from VPC's ipv6CidrBlock when using IPAM pool)
-{{ $vpcUlaIpv6Cidr := $vpcAtProvider.ipv6CidrBlock | default "" }}
+# Extract IPv6 CIDR - the provider only exposes a single ipv6CidrBlock field
+# Whether it's Amazon-provided or IPAM-allocated is determined by spec config, not observed state
+{{ $vpcIpv6Cidr := $vpcAtProvider.ipv6CidrBlock | default "" }}
+{{ $vpcIpv6AssociationId := $vpcAtProvider.ipv6AssociationId | default "" }}
 
 # Build VPC observed state
+# Note: ipv6Cidr is the single IPv6 CIDR from atProvider - interpretation (Amazon vs ULA)
+# depends on spec configuration, not observed field names
 {{ $observed = merge $observed (dict "vpc" (dict
   "id" $vpcId
   "cidr" $vpcCidrBlock
-  "ipv6AmazonCidr" $vpcAmazonIpv6Cidr
-  "ipv6UlaCidr" $vpcUlaIpv6Cidr
+  "ipv6Cidr" $vpcIpv6Cidr
+  "ipv6AssociationId" $vpcIpv6AssociationId
   "ready" $vpcReady
 )) }}
 

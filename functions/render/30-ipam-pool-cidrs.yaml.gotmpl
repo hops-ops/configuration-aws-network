@@ -33,8 +33,9 @@ spec:
 
 # ==============================================================================
 # IPv6 ULA Subnet Pool CIDR
+# Uses observed.vpc.ipv6Cidr - when ipv6Ula is enabled, this is the ULA CIDR
 # ==============================================================================
-{{ if and $state.ipam.ipv6Ula.enabled (ne $observed.vpc.ipv6UlaCidr "") }}
+{{ if and $state.ipam.ipv6Ula.enabled (ne $observed.vpc.ipv6Cidr "") }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPCIpamPoolCidr
@@ -47,7 +48,7 @@ spec:
   forProvider:
     ipamPoolIdRef:
       name: {{ $state.network.name }}-ipv6-subnet
-    cidr: {{ $observed.vpc.ipv6UlaCidr }}
+    cidr: {{ $observed.vpc.ipv6Cidr }}
     region: {{ $state.network.region }}
   providerConfigRef:
     name: {{ $state.providerConfig.name }}
