@@ -51,8 +51,7 @@ _items = [
         }
     },
 
-    # Test: nat.enabled=true with SingleAz - NAT gates on VPC ready,
-    # but we test it renders when observed resources are provided via validate
+    # Test: nat.enabled=true with SingleAz creates exactly 1 NAT gateway (with observed VPC)
     metav1alpha1.CompositionTest {
         metadata.name = "nat-single-az-one-nat"
         spec = {
@@ -76,14 +75,54 @@ _items = [
                     ]
                 }
             }
-            # VPC renders on first pass; NAT requires observed VPC
+            # Provide observed VPC so NAT can render
+            observedResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata = {
+                        name = "test-single-nat"
+                        annotations = {"crossplane.io/composition-resource-name" = "vpc"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "vpc-test123", cidrBlock = "10.0.0.0/16"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata = {
+                        name = "test-single-nat"
+                        annotations = {"crossplane.io/composition-resource-name" = "internet-gateway"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "igw-test123"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata = {
+                        name = "test-single-nat-public-a"
+                        annotations = {"crossplane.io/composition-resource-name" = "subnet-public-a"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "subnet-publica123", cidrBlock = "10.0.0.0/24", availabilityZone = "us-east-1a"}
+                    }
+                }
+            ]
+            # SingleAz = exactly 1 NAT, 1 EIP (in first AZ only)
             assertResources = [
-                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "VPC", metadata.name = "test-single-nat"}
+                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "NATGateway", metadata.name = "test-single-nat-nat-a"}
+                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "EIP", metadata.name = "test-single-nat-nat-eip-a"}
             ]
         }
     },
 
-    # Test: nat.strategy=HighlyAvailable - VPC renders, NAT gates on observed
+    # Test: nat.strategy=HighlyAvailable creates NAT per AZ (with observed VPC)
     metav1alpha1.CompositionTest {
         metadata.name = "nat-ha-multiple-nats"
         spec = {
@@ -107,9 +146,63 @@ _items = [
                     ]
                 }
             }
-            # VPC renders on first pass
+            # Provide observed VPC so NAT can render
+            observedResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata = {
+                        name = "test-ha-nat"
+                        annotations = {"crossplane.io/composition-resource-name" = "vpc"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "vpc-test123", cidrBlock = "10.0.0.0/16"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata = {
+                        name = "test-ha-nat"
+                        annotations = {"crossplane.io/composition-resource-name" = "internet-gateway"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "igw-test123"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata = {
+                        name = "test-ha-nat-public-a"
+                        annotations = {"crossplane.io/composition-resource-name" = "subnet-public-a"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "subnet-publica123", cidrBlock = "10.0.0.0/24", availabilityZone = "us-east-1a"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata = {
+                        name = "test-ha-nat-public-b"
+                        annotations = {"crossplane.io/composition-resource-name" = "subnet-public-b"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "subnet-publicb123", cidrBlock = "10.0.1.0/24", availabilityZone = "us-east-1b"}
+                    }
+                }
+            ]
+            # HighlyAvailable = NAT + EIP in each AZ
             assertResources = [
-                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "VPC", metadata.name = "test-ha-nat"}
+                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "NATGateway", metadata.name = "test-ha-nat-nat-a"}
+                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "NATGateway", metadata.name = "test-ha-nat-nat-b"}
+                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "EIP", metadata.name = "test-ha-nat-nat-eip-a"}
+                {apiVersion = "ec2.aws.m.upbound.io/v1beta1", kind = "EIP", metadata.name = "test-ha-nat-nat-eip-b"}
             ]
         }
     },
