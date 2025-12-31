@@ -15,7 +15,7 @@ spec:
     ipv6:
       ula:
         enabled: true
-        cidr: "fd00:1234:5678::/48"
+        cidr: "fd00:1234:5678::/56"
         ipamPoolId: ipam-pool-0123456789abcdef0
 
   subnets:

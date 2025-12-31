@@ -35,7 +35,7 @@ spec:
       cidr: "10.2.32.0/20"
       availabilityZone: b
     - name: standard-private-c
-      cidr: "10.2.48.0/20"
+      cidr: "10.2.56.0/20"
       availabilityZone: c
 
   nat:

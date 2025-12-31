@@ -76,7 +76,7 @@
 {{ $ipv6UlaScopeId := $ipv6UlaAllocation.scopeId | default "" }}
 {{ $ipv6UlaLocale := $ipv6UlaAllocation.locale | default $awsRegion }}
 {{ $ipv6UlaAllocVpc := $ipv6UlaAllocation.vpc | default (dict) }}
-{{ $ipv6UlaVpcNetmask := $ipv6UlaAllocVpc.netmaskLength | default 48 }}
+{{ $ipv6UlaVpcNetmask := $ipv6UlaAllocVpc.netmaskLength | default 56 }}
 {{ $ipv6UlaAllocSubnetsConfig := $ipv6UlaAllocation.subnets | default (dict) }}
 {{ $ipv6UlaAllocAzs := $ipv6UlaAllocSubnetsConfig.availabilityZones | default (list "a" "b" "c") }}
 {{ $ipv6UlaAllocPublic := $ipv6UlaAllocSubnetsConfig.public | default (dict) }}

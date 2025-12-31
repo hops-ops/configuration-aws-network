@@ -12,6 +12,6 @@ status:
     - type: Synced
       status: "True"
   atProvider:
-    id: ipam-pool-subnet-ipv6-0123456789_fd00:100::/48
+    id: ipam-pool-subnet-ipv6-0123456789_fd00:100::/56
     ipamPoolId: ipam-pool-subnet-ipv6-0123456789
-    cidr: "fd00:100::/48"
+    cidr: "fd00:100::/56"

@@ -22,7 +22,7 @@ _base64_creds = base64.encode(_creds)
 _ipam_private_scope_id = "ipam-scope-0ba795a6462cbb518"  # Private scope for IPv4 and IPv6 ULA
 
 _ipv4_private_pool_id = "ipam-pool-0607416fa3707147a"
-_ipv6_private_pool_id = "ipam-pool-0769c239ba0259975"
+_ipv6_private_pool_id = "ipam-pool-0ca730678e463dbfc"
 
 # =============================================================================
 # Dynamic test resources - timestamped to allow concurrent test runs
@@ -77,7 +77,7 @@ _items = [
                                 poolId: _ipv6_private_pool_id
                                 scopeId: _ipam_private_scope_id
                                 vpc: {
-                                    netmaskLength: 48
+                                    netmaskLength: 56  # AWS requires /56 for VPC IPv6
                                 }
                                 subnets: {
                                     availabilityZones: ["a", "b"]

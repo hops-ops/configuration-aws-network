@@ -15,7 +15,7 @@ status:
     id: vpc-0123456789abcdef0
     arn: arn:aws:ec2:us-east-1:123456789012:vpc/vpc-0123456789abcdef0
     cidrBlock: "10.100.0.0/16"
-    ipv6CidrBlock: "fd00:100::/48"
+    ipv6CidrBlock: "fd00:100::/56"
     ipv6AssociationId: vpc-cidr-assoc-0123456789abcdef0
     defaultNetworkAclId: acl-0123456789abcdef0
     defaultRouteTableId: rtb-0123456789abcdef0

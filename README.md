@@ -73,7 +73,7 @@ spec:
       poolId: ipam-pool-0fedcba9876543210
       scopeId: ipam-scope-0fedcba9876543210
       vpc:
-        netmaskLength: 48
+        netmaskLength: 56
       subnets:
         availabilityZones: [a, b, c]
         public:
@@ -284,7 +284,7 @@ spec:
     ipv6:
       ula:
         enabled: true
-        cidr: "fd00:dead:beef::/48"
+        cidr: "fd00:dead:beef::/56"
         ipamPoolId: ipam-pool-0abc123
   subnets:
     - name: ds-public-a
@@ -387,7 +387,7 @@ spec:
       poolId: ipam-pool-ipv6-enterprise
       scopeId: ipam-scope-ipv6-enterprise
       vpc:
-        netmaskLength: 48
+        netmaskLength: 56
       subnets:
         availabilityZones: [a, b, c]
         public:
@@ -443,7 +443,7 @@ spec:
 |-------|------|----------|-------------|
 | `cidr` | string | No* | IPv4 CIDR block (e.g., "10.1.0.0/16") |
 | `ipv6.ula.enabled` | boolean | No | Enable ULA IPv6 |
-| `ipv6.ula.cidr` | string | No | ULA IPv6 CIDR (e.g., "fd00::/48") |
+| `ipv6.ula.cidr` | string | No | ULA IPv6 CIDR (e.g., "fd00::/56") |
 | `ipv6.ula.ipamPoolId` | string | No | IPAM pool ID for ULA IPv6 |
 | `ipv6.amazonProvided.enabled` | boolean | No | Request Amazon-provided /56 IPv6 |
 | `forProvider` | object | No | Pass-through for VPC forProvider fields |
@@ -521,7 +521,7 @@ status:
         private-a: "10.100.16.0/20"
     ipv6Ula:
       ready: true
-      cidr: "fd00:dead:beef::/48"
+      cidr: "fd00:dead:beef::/56"
       vpcPoolId: ipam-pool-ipv6-xxx
       subnetPoolId: ipam-pool-ipv6-yyy
       subnets:
@@ -533,7 +533,7 @@ status:
     vpcId: vpc-abc123
     cidr:
       ipv4: "10.100.0.0/16"
-      ipv6Ula: "fd00:dead:beef::/48"
+      ipv6Ula: "fd00:dead:beef::/56"
     availabilityZones:
       - us-east-1a
       - us-east-1b

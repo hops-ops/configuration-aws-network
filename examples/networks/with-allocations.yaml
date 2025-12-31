@@ -16,7 +16,7 @@ spec:
   ipam:
     ipv4:
       enabled: true
-      # Regional pool id
+      # Pool ID from aws-ipam status
       poolId: ipam-pool-0123456789abcdef0
       # IPAM scope ID from aws-ipam status.ipam.privateDefaultScopeId
       scopeId: ipam-scope-0123456789abcdef0
@@ -39,7 +39,7 @@ spec:
       poolId: ipam-pool-0fedcba9876543210
       scopeId: ipam-scope-0fedcba9876543210
       vpc:
-        netmaskLength: 64
+        netmaskLength: 56  # AWS requires /56 for VPC IPv6
       subnets:
         availabilityZones:
         - a
@@ -47,10 +47,10 @@ spec:
         - c
         public:
           enabled: true
-          netmaskLength: 72
+          netmaskLength: 64
         private:
           enabled: true
-          netmaskLength: 72
+          netmaskLength: 64
 
   # VPC config (cidr will come from allocations)
   vpc: {}

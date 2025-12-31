@@ -152,8 +152,8 @@ spec:
                         properties:
                           netmaskLength:
                             type: integer
-                            description: Netmask length for VPC IPv6 CIDR (e.g., 48 for /48).
-                            default: 48
+                            description: Netmask length for VPC IPv6 CIDR. AWS requires /56.
+                            default: 56
                       subnets:
                         type: object
                         description: Subnet allocation settings.
@@ -230,7 +230,7 @@ spec:
                           cidr:
                             type: string
                             description: |
-                              ULA IPv6 CIDR block (e.g., "fd00:1234::/48").
+                              ULA IPv6 CIDR block (e.g., "fd00:1234::/56").
                               Required for manual ULA configuration.
                           ipamPoolId:
                             type: string

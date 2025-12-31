@@ -34,7 +34,7 @@ spec:
       cidr: "10.5.32.0/20"
       availabilityZone: b
     - name: ha-private-c
-      cidr: "10.5.48.0/20"
+      cidr: "10.5.56.0/20"
       availabilityZone: c
 
   nat:

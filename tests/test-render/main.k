@@ -280,7 +280,7 @@ _items = [
                             ipv4IpamPoolId: "ipam-pool-0123456789abcdef0"
                             ipv4NetmaskLength: 16
                             ipv6IpamPoolId: "ipam-pool-0fedcba9876543210"
-                            ipv6NetmaskLength: 48
+                            ipv6NetmaskLength: 56  # AWS requires /56 for VPC IPv6
                         }
                     }
                 }
