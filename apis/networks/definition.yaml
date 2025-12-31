@@ -196,9 +196,6 @@ spec:
               region:
                 type: string
                 description: AWS region for all managed resources.
-              accountId:
-                type: string
-                description: AWS account ID for tagging and documentation.
               tags:
                 type: object
                 description: Extra AWS tags merged with defaults.

@@ -360,7 +360,6 @@ metadata:
   namespace: acme-prod
 spec:
   region: us-east-1
-  accountId: "123456789012"
   providerConfigRef:
     name: acme-aws-prod
   tags:
@@ -431,7 +430,6 @@ spec:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `region` | string | Yes | AWS region |
-| `accountId` | string | No | AWS account ID (for tagging) |
 | `providerConfigRef.name` | string | No | AWS ProviderConfig name (default: "default") |
 | `providerConfigRef.kind` | string | No | Provider config kind (default: "ProviderConfig") |
 | `tags` | object | No | Additional AWS tags |

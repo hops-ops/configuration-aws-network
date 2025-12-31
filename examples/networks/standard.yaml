@@ -7,7 +7,6 @@ spec:
   providerConfigRef:
     name: default
   region: us-east-1
-  accountId: "123456789012"
   tags:
     Environment: production
     Team: platform

@@ -22,7 +22,6 @@
 
 # AWS configuration
 {{ $awsRegion := $spec.region }}
-{{ $awsAccountId := $spec.accountId | default "" }}
 
 # Default AWS tags
 {{ $defaultTags := dict "hops" "true" "hops.ops.com.ai/network" $networkName }}
