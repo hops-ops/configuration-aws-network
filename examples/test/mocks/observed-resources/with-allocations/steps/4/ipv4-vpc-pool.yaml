@@ -1,0 +1,20 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPool
+metadata:
+  name: with-allocations-ipv4-vpc
+  annotations:
+    crossplane.io/composition-resource-name: ipv4-vpc-pool
+    gotemplating.fn.crossplane.io/composition-resource-name: ipv4-vpc-pool
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+    - type: Synced
+      status: "True"
+  atProvider:
+    id: ipam-pool-vpc-ipv4-0123456789
+    arn: arn:aws:ec2:us-east-1:123456789012:ipam-pool/ipam-pool-vpc-ipv4-0123456789
+    addressFamily: ipv4
+    ipamScopeId: ipam-scope-0123456789abcdef0
+    allocationDefaultNetmaskLength: 16
+    state: create-complete

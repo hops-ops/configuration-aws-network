@@ -16,7 +16,7 @@ status:
     arn: arn:aws:ec2:us-east-1:123456789012:ipam-pool/ipam-pool-subnet-ipv6-0123456789
     addressFamily: ipv6
     ipamScopeId: ipam-scope-0fedcba9876543210
-    sourceIpamPoolId: ipam-pool-0fedcba9876543210
+    sourceIpamPoolId: ipam-pool-vpc-ipv6-0123456789
     allocationMinNetmaskLength: 64
     allocationMaxNetmaskLength: 64
     allocationDefaultNetmaskLength: 64

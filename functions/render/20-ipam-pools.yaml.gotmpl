@@ -1,15 +1,51 @@
 # code: language=yaml
 #
-# IPAM Subnet Pools (Step 2)
-# Creates VPCIpamPool resources for IPv4 and IPv6 subnet allocation
+# IPAM VPC and Subnet Pools (Step 2)
+# Creates VPCIpamPool resources for VPC CIDR containment and subnet allocation
+# Pattern: VPC Pool (standalone) <- receives VPC's allocated CIDR
+#          Subnet Pool (child of VPC Pool) <- allocates individual subnets
 # Depends on: $state, $observed
 #
 
 {{ if $state.render.ipamPools }}
 
 # ==============================================================================
-# IPv4 Subnet Pool
+# IPv4 VPC Pool (standalone - receives VPC's allocated CIDR)
 # ==============================================================================
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPool
+metadata:
+  name: {{ $state.network.name }}-ipv4-vpc
+  annotations:
+    {{ setResourceNameAnnotation "ipv4-vpc-pool" }}
+  labels:
+    hops.ops.com.ai/network: {{ $state.network.name }}
+    hops.ops.com.ai/pool-type: vpc
+spec:
+  managementPolicies: {{ $state.managementPolicies | toJson }}
+  forProvider:
+    addressFamily: ipv4
+    ipamScopeId: {{ $state.ipam.ipv4.scopeId }}
+    # No sourceIpamPoolId - standalone pool that receives VPC's allocated CIDR
+    allocationDefaultNetmaskLength: {{ $state.ipam.ipv4.vpcNetmask }}
+    {{- if $state.ipam.ipv4.locale }}
+    locale: {{ $state.ipam.ipv4.locale }}
+    {{- end }}
+    region: {{ $state.network.region }}
+    description: "VPC pool for {{ $state.network.name }}"
+    tags:
+      {{ $state.network.tags | toYaml | nindent 6 }}
+      Name: {{ $state.network.name }}-ipv4-vpc-pool
+  providerConfigRef:
+    name: {{ $state.providerConfig.name }}
+    kind: {{ $state.providerConfig.kind }}
+
+# ==============================================================================
+# IPv4 Subnet Pool (child of VPC Pool)
+# Created after VPC Pool is ready
+# ==============================================================================
+{{ if $observed.ipam.ipv4.vpcPoolReady }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPCIpamPool
@@ -25,7 +61,7 @@ spec:
   forProvider:
     addressFamily: ipv4
     ipamScopeId: {{ $state.ipam.ipv4.scopeId }}
-    sourceIpamPoolId: {{ $state.ipam.ipv4.poolId }}
+    sourceIpamPoolId: {{ $observed.ipam.ipv4.vpcPoolId }}
     allocationMinNetmaskLength: 20
     allocationMaxNetmaskLength: 28
     allocationDefaultNetmaskLength: 24
@@ -40,11 +76,46 @@ spec:
   providerConfigRef:
     name: {{ $state.providerConfig.name }}
     kind: {{ $state.providerConfig.kind }}
+{{ end }}
 
 # ==============================================================================
-# IPv6 ULA Subnet Pool
+# IPv6 ULA VPC Pool (standalone - receives VPC's allocated CIDR)
 # ==============================================================================
 {{ if $state.ipam.ipv6Ula.enabled }}
+---
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPool
+metadata:
+  name: {{ $state.network.name }}-ipv6-vpc
+  annotations:
+    {{ setResourceNameAnnotation "ipv6-vpc-pool" }}
+  labels:
+    hops.ops.com.ai/network: {{ $state.network.name }}
+    hops.ops.com.ai/pool-type: vpc
+spec:
+  managementPolicies: {{ $state.managementPolicies | toJson }}
+  forProvider:
+    addressFamily: ipv6
+    ipamScopeId: {{ $state.ipam.ipv6Ula.scopeId }}
+    # No sourceIpamPoolId - standalone pool that receives VPC's allocated CIDR
+    allocationDefaultNetmaskLength: {{ $state.ipam.ipv6Ula.vpcNetmask }}
+    {{- if $state.ipam.ipv6Ula.locale }}
+    locale: {{ $state.ipam.ipv6Ula.locale }}
+    {{- end }}
+    region: {{ $state.network.region }}
+    description: "IPv6 VPC pool for {{ $state.network.name }}"
+    tags:
+      {{ $state.network.tags | toYaml | nindent 6 }}
+      Name: {{ $state.network.name }}-ipv6-vpc-pool
+  providerConfigRef:
+    name: {{ $state.providerConfig.name }}
+    kind: {{ $state.providerConfig.kind }}
+
+# ==============================================================================
+# IPv6 ULA Subnet Pool (child of VPC Pool)
+# Created after VPC Pool is ready
+# ==============================================================================
+{{ if $observed.ipam.ipv6Ula.vpcPoolReady }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPCIpamPool
@@ -60,7 +131,7 @@ spec:
   forProvider:
     addressFamily: ipv6
     ipamScopeId: {{ $state.ipam.ipv6Ula.scopeId }}
-    sourceIpamPoolId: {{ $state.ipam.ipv6Ula.poolId }}
+    sourceIpamPoolId: {{ $observed.ipam.ipv6Ula.vpcPoolId }}
     allocationMinNetmaskLength: 64
     allocationMaxNetmaskLength: 64
     allocationDefaultNetmaskLength: 64
@@ -75,6 +146,7 @@ spec:
   providerConfigRef:
     name: {{ $state.providerConfig.name }}
     kind: {{ $state.providerConfig.kind }}
+{{ end }}
 {{ end }}
 
 {{ end }}

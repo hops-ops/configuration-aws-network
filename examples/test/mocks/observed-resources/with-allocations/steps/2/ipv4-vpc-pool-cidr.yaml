@@ -1,0 +1,18 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: VPCIpamPoolCidr
+metadata:
+  name: with-allocations-ipv4-vpc
+  annotations:
+    crossplane.io/composition-resource-name: ipv4-vpc-pool-cidr
+    gotemplating.fn.crossplane.io/composition-resource-name: ipv4-vpc-pool-cidr
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+    - type: Synced
+      status: "True"
+  atProvider:
+    id: ipam-pool-cidr-vpc-ipv4-0123456789
+    ipamPoolId: ipam-pool-vpc-ipv4-0123456789
+    cidr: "10.100.0.0/16"
+    state: provisioned

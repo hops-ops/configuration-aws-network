@@ -8,7 +8,20 @@
 {{ $readiness := $observed._readiness }}
 
 # ==============================================================================
-# IPv4 IPAM Observations
+# IPv4 VPC Pool Observations
+# ==============================================================================
+{{ $ipv4VpcPoolEntry := get $raw "ipv4-vpc-pool" | default (dict) }}
+{{ $ipv4VpcPoolResource := $ipv4VpcPoolEntry.resource | default (dict) }}
+{{ $ipv4VpcPoolStatus := $ipv4VpcPoolResource.status | default (dict) }}
+{{ $ipv4VpcPoolAtProvider := $ipv4VpcPoolStatus.atProvider | default (dict) }}
+
+{{ $ipv4VpcPoolId := $ipv4VpcPoolAtProvider.id | default "" }}
+{{ $ipv4VpcPoolReady := and (get $readiness "ipv4-vpc-pool" | default false) (ne $ipv4VpcPoolId "") }}
+{{ $ipv4VpcPoolCidrReady := get $readiness "ipv4-vpc-pool-cidr" | default false }}
+{{ $ipv4VpcPoolFullyReady := and $ipv4VpcPoolReady $ipv4VpcPoolCidrReady }}
+
+# ==============================================================================
+# IPv4 Subnet Pool Observations
 # ==============================================================================
 {{ $ipv4PoolEntry := get $raw "ipv4-subnet-pool" | default (dict) }}
 {{ $ipv4PoolResource := $ipv4PoolEntry.resource | default (dict) }}
@@ -24,7 +37,20 @@
 {{ $ipv4Allocations := dict }}
 
 # ==============================================================================
-# IPv6 ULA IPAM Observations
+# IPv6 ULA VPC Pool Observations
+# ==============================================================================
+{{ $ipv6VpcPoolEntry := get $raw "ipv6-vpc-pool" | default (dict) }}
+{{ $ipv6VpcPoolResource := $ipv6VpcPoolEntry.resource | default (dict) }}
+{{ $ipv6VpcPoolStatus := $ipv6VpcPoolResource.status | default (dict) }}
+{{ $ipv6VpcPoolAtProvider := $ipv6VpcPoolStatus.atProvider | default (dict) }}
+
+{{ $ipv6VpcPoolId := $ipv6VpcPoolAtProvider.id | default "" }}
+{{ $ipv6VpcPoolReady := and (get $readiness "ipv6-vpc-pool" | default false) (ne $ipv6VpcPoolId "") }}
+{{ $ipv6VpcPoolCidrReady := get $readiness "ipv6-vpc-pool-cidr" | default false }}
+{{ $ipv6VpcPoolFullyReady := and $ipv6VpcPoolReady $ipv6VpcPoolCidrReady }}
+
+# ==============================================================================
+# IPv6 ULA Subnet Pool Observations
 # ==============================================================================
 {{ $ipv6PoolEntry := get $raw "ipv6-subnet-pool" | default (dict) }}
 {{ $ipv6PoolResource := $ipv6PoolEntry.resource | default (dict) }}
@@ -78,11 +104,17 @@
 # ==============================================================================
 {{ $observed = merge $observed (dict "ipam" (dict
   "ipv4" (dict
+    "vpcPoolId" $ipv4VpcPoolId
+    "vpcPoolReady" $ipv4VpcPoolReady
+    "vpcPoolFullyReady" $ipv4VpcPoolFullyReady
     "subnetPoolId" $ipv4SubnetPoolId
     "subnetPoolReady" $ipv4SubnetPoolReady
     "allocations" $ipv4Allocations
   )
   "ipv6Ula" (dict
+    "vpcPoolId" $ipv6VpcPoolId
+    "vpcPoolReady" $ipv6VpcPoolReady
+    "vpcPoolFullyReady" $ipv6VpcPoolFullyReady
     "subnetPoolId" $ipv6SubnetPoolId
     "subnetPoolReady" $ipv6SubnetPoolReady
     "allocations" $ipv6UlaAllocations
