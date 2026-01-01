@@ -154,15 +154,16 @@
         {{ $publicCidr := printf "%s.%s.%d.0/%d" $octet1 $octet2 $publicThirdOctet $layoutPublicNetmask }}
         {{ $subnetName := printf "%s-public-%s" $networkName $az }}
 
-        # Calculate IPv6 subnet if enabled
-        {{ $ipv6SubnetCidr := "" }}
-        {{ if and $hasIpv6 (ne $vpcIpv6Cidr "") }}
+        # Calculate IPv6 subnet for public - only Amazon-provided (not ULA)
+        # ULA is private addressing and should not be on public subnets
+        {{ $ipv6AmazonCidr := "" }}
+        {{ if and $amazonIpv6Enabled (ne $vpcIpv6Cidr "") }}
           # IPv6: parse and calculate /64 subnets from /56 VPC
           {{ $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
           {{ $ipv6Base := index $ipv6Parts 0 }}
-          # Simple approach: append subnet index to IPv6 prefix
-          # e.g., fd00:1234:5678::/56 -> fd00:1234:5678:0::/64, fd00:1234:5678:1::/64
-          {{ $ipv6SubnetCidr = printf "%s%d::/64" (trimSuffix "::" $ipv6Base) $azIndex }}
+          # Append subnet index to IPv6 prefix with colon separator
+          # e.g., 2600:1234:5678::/56 -> 2600:1234:5678:0::/64, 2600:1234:5678:1::/64
+          {{ $ipv6AmazonCidr = printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $azIndex }}
         {{ end }}
 
         {{ $subnetTags := merge (dict) $awsTags (dict
@@ -182,8 +183,8 @@
           "mapPublicIpOnLaunch" true
           "tags" $subnetTags
           "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $az)
-          "ipv6UlaCidr" $ipv6SubnetCidr
-          "ipv6AmazonCidr" ""
+          "ipv6UlaCidr" ""
+          "ipv6AmazonCidr" $ipv6AmazonCidr
         }}
 
         {{ $publicSubnets = append $publicSubnets $config }}
@@ -196,13 +197,22 @@
         {{ $privateCidr := printf "%s.%s.%d.0/%d" $octet1 $octet2 $privateThirdOctet $layoutPrivateNetmask }}
         {{ $subnetName := printf "%s-private-%s" $networkName $az }}
 
-        # Calculate IPv6 subnet if enabled (offset from public)
-        {{ $ipv6SubnetCidr := "" }}
-        {{ if and $hasIpv6 (ne $vpcIpv6Cidr "") }}
+        # Calculate IPv6 subnets for private - supports both ULA and Amazon-provided
+        # Private subnets start at index 0 (no offset needed since public doesn't use ULA)
+        {{ $ipv6UlaCidr := "" }}
+        {{ $ipv6AmazonCidr := "" }}
+        {{ if ne $vpcIpv6Cidr "" }}
           {{ $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
           {{ $ipv6Base := index $ipv6Parts 0 }}
-          {{ $ipv6PrivateIndex := add $azIndex $numAzs }}
-          {{ $ipv6SubnetCidr = printf "%s%d::/64" (trimSuffix "::" $ipv6Base) $ipv6PrivateIndex }}
+          # ULA IPv6 for private subnets (sequential from 0)
+          {{ if or $ulaEnabled $ipv6UlaIpamEnabled }}
+            {{ $ipv6UlaCidr = printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $azIndex }}
+          {{ end }}
+          # Amazon-provided IPv6 for private subnets (offset after public subnets)
+          {{ if $amazonIpv6Enabled }}
+            {{ $ipv6PrivateIndex := add $azIndex $numAzs }}
+            {{ $ipv6AmazonCidr = printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $ipv6PrivateIndex }}
+          {{ end }}
         {{ end }}
 
         {{ $subnetTags := merge (dict) $awsTags (dict
@@ -222,8 +232,8 @@
           "mapPublicIpOnLaunch" false
           "tags" $subnetTags
           "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $az)
-          "ipv6UlaCidr" $ipv6SubnetCidr
-          "ipv6AmazonCidr" ""
+          "ipv6UlaCidr" $ipv6UlaCidr
+          "ipv6AmazonCidr" $ipv6AmazonCidr
         }}
 
         {{ $privateSubnets = append $privateSubnets $config }}

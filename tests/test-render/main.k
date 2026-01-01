@@ -882,11 +882,11 @@ _items = [
     },
 
     # Test: IPv6 ULA CIDR calculation with subnetLayout
-    # When VPC has IPv6 CIDR observed, subnets should get ipv6CidrBlock set
-    # Template uses: printf "%s%d::/64" (trimSuffix "::" $ipv6Base) $azIndex
-    # For fd00:100:0::/56 -> fd00:100:00::/64, fd00:100:01::/64, etc.
+    # ULA IPv6 is private addressing - only private subnets get ULA CIDRs
+    # Public subnets should NOT have ULA IPv6 (they can have Amazon-provided)
+    # Template uses: printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $azIndex
     metav1alpha1.CompositionTest {
-        metadata.name = "layout-ipv6-ula-cidr-math"
+        metadata.name = "layout-ipv6-ula-private-only"
         spec = {
             compositionPath = "apis/networks/composition.yaml"
             xrdPath = "apis/networks/definition.yaml"
@@ -928,34 +928,22 @@ _items = [
                     }
                 }
             ]
-            # Verify subnets get IPv6 CIDRs calculated from VPC IPv6 CIDR
-            # Template: trimSuffix "::" "fd00:100:0::" = "fd00:100:0"
-            # Public index 0: fd00:100:00::/64, index 1: fd00:100:01::/64
-            # Private index 2: fd00:100:02::/64, index 3: fd00:100:03::/64
+            # Verify: ULA IPv6 only on private subnets, NOT on public
+            # Private subnets: sequential from index 0 with colon separator
+            # fd00:100:0:: -> trimSuffix = fd00:100:0 -> fd00:100:0:0::/64, fd00:100:0:1::/64
             assertResources = [
-                {
-                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
-                    kind = "Subnet"
-                    metadata.name = "test-layout-ipv6-public-a"
-                    spec.forProvider.ipv6CidrBlock = "fd00:100:00::/64"
-                }
-                {
-                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
-                    kind = "Subnet"
-                    metadata.name = "test-layout-ipv6-public-b"
-                    spec.forProvider.ipv6CidrBlock = "fd00:100:01::/64"
-                }
+                # Private subnets get ULA IPv6 CIDRs
                 {
                     apiVersion = "ec2.aws.m.upbound.io/v1beta1"
                     kind = "Subnet"
                     metadata.name = "test-layout-ipv6-private-a"
-                    spec.forProvider.ipv6CidrBlock = "fd00:100:02::/64"
+                    spec.forProvider.ipv6CidrBlock = "fd00:100:0:0::/64"
                 }
                 {
                     apiVersion = "ec2.aws.m.upbound.io/v1beta1"
                     kind = "Subnet"
                     metadata.name = "test-layout-ipv6-private-b"
-                    spec.forProvider.ipv6CidrBlock = "fd00:100:03::/64"
+                    spec.forProvider.ipv6CidrBlock = "fd00:100:0:1::/64"
                 }
             ]
         }
