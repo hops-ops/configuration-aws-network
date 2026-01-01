@@ -1,0 +1,20 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: NATGateway
+metadata:
+  name: with-ipam-nat-a
+  annotations:
+    crossplane.io/composition-resource-name: nat-a
+    gotemplating.fn.crossplane.io/composition-resource-name: nat-a
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+    - type: Synced
+      status: "True"
+  atProvider:
+    id: nat-0123456789abcdef0
+    allocationId: eipalloc-0123456789abcdef0
+    subnetId: subnet-pub-a-0123456789
+    connectivityType: public
+    networkInterfaceId: eni-0123456789abcdef0
+    publicIp: "203.0.113.10"

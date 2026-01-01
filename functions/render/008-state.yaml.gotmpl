@@ -9,10 +9,8 @@
 # Render Flags - Clean conditionals for resource templates
 # ==============================================================================
 {{ $renderVpc := true }}
-{{ $renderIpamPools := $ipamMode }}
-{{ $renderIpamPoolCidrs := and $ipamMode $observed.vpc.ready }}
-{{ $renderIpamAllocations := and $ipamMode $observed.ipam.ipv4.subnetPoolFullyReady }}
-{{ $renderSubnets := or $manualMode (gt (len $observed.ipam.ipv4.allocations) 0) }}
+# Subnets are rendered when we have subnet configs (from cidrmath calculation or manual spec)
+{{ $renderSubnets := or $hasPublicSubnets $hasPrivateSubnets }}
 {{ $renderInternetGateway := $hasPublicSubnets }}
 {{ $renderEgressOnlyIgw := and $hasIpv6 $hasPrivateSubnets }}
 {{ $renderNatGateways := and $natDesired (gt (len $natConfigsForCreation) 0) }}
@@ -102,9 +100,6 @@
 
   "render" (dict
     "vpc" $renderVpc
-    "ipamPools" $renderIpamPools
-    "ipamPoolCidrs" $renderIpamPoolCidrs
-    "ipamAllocations" $renderIpamAllocations
     "subnets" $renderSubnets
     "igw" $renderInternetGateway
     "eigw" $renderEgressOnlyIgw
@@ -116,36 +111,26 @@
 
   "ipam" (dict
     "ipv4" (dict
-      "enabled" $ipv4AllocationEnabled
-      "poolId" $ipv4PoolId
-      "scopeId" $ipv4ScopeId
-      "locale" $ipv4Locale
-      "vpcNetmask" $ipv4VpcNetmask
-      "azs" $ipv4AllocAzs
-      "public" (dict
-        "enabled" $ipv4AllocPublicEnabled
-        "netmask" $ipv4AllocPublicNetmask
-      )
-      "private" (dict
-        "enabled" $ipv4AllocPrivateEnabled
-        "netmask" $ipv4AllocPrivateNetmask
-      )
+      "enabled" $ipv4IpamEnabled
+      "poolId" $ipv4IpamPoolId
+      "vpcNetmask" $ipv4IpamNetmask
     )
     "ipv6Ula" (dict
-      "enabled" $ipv6UlaAllocationEnabled
-      "poolId" $ipv6UlaPoolId
-      "scopeId" $ipv6UlaScopeId
-      "locale" $ipv6UlaLocale
-      "vpcNetmask" $ipv6UlaVpcNetmask
-      "azs" $ipv6UlaAllocAzs
-      "public" (dict
-        "enabled" $ipv6UlaAllocPublicEnabled
-        "netmask" $ipv6UlaAllocPublicNetmask
-      )
-      "private" (dict
-        "enabled" $ipv6UlaAllocPrivateEnabled
-        "netmask" $ipv6UlaAllocPrivateNetmask
-      )
+      "enabled" $ipv6UlaIpamEnabled
+      "poolId" $ipv6UlaIpamPoolId
+      "vpcNetmask" $ipv6UlaIpamNetmask
+    )
+  )
+
+  "subnetLayout" (dict
+    "azs" $layoutAzs
+    "public" (dict
+      "enabled" $layoutPublicEnabled
+      "netmask" $layoutPublicNetmask
+    )
+    "private" (dict
+      "enabled" $layoutPrivateEnabled
+      "netmask" $layoutPrivateNetmask
     )
   )
 }}

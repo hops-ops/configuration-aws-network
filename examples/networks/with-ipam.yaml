@@ -1,0 +1,49 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: with-ipam
+  namespace: infra
+spec:
+  providerConfigRef:
+    name: default
+  region: us-east-1
+  tags:
+    Environment: production
+    Team: platform
+
+  # Use IPAM to allocate VPC CIDR from pool
+  # Subnet CIDRs are calculated automatically using cidrmath
+  ipam:
+    ipv4:
+      enabled: true
+      # Pool ID from aws-ipam status
+      poolId: ipam-pool-0123456789abcdef0
+      netmaskLength: 16
+    ipv6Ula:
+      enabled: true
+      # ULA pool ID from aws-ipam status
+      poolId: ipam-pool-0fedcba9876543210
+      netmaskLength: 56  # AWS requires /56 for VPC IPv6
+
+  # Subnet layout - CIDRs calculated from VPC CIDR via cidrmath
+  # This is meant to be temporary until Terraform/Crossplane support for IPAM
+  # subnet allocations is available
+  # https://github.com/hops-ops/configuration-aws-network/pull/7
+  subnetLayout:
+    availabilityZones:
+    - a
+    - b
+    - c
+    public:
+      enabled: true
+      netmaskLength: 24
+    private:
+      enabled: true
+      netmaskLength: 20
+
+  # VPC config (cidr will come from IPAM allocation)
+  vpc: {}
+
+  nat:
+    enabled: true
+    strategy: SingleAz

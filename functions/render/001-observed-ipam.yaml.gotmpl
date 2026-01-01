@@ -1,98 +1,17 @@
 # code: language=yaml
 #
-# Extend $observed with IPAM pool and allocation observations
-# Depends on: 00-observed-vpc.yaml.gotmpl ($observed, $readiness, $raw)
+# Extend $observed with IPAM-related state
+# Simplified: IPAM pools are no longer created, subnets use cidrmath
+# Depends on: 000-observed-vpc.yaml.gotmpl ($observed)
 #
 
-{{ $raw := $observed._raw }}
-{{ $readiness := $observed._readiness }}
-
-# ==============================================================================
-# IPv4 Subnet Pool Observations
-# ==============================================================================
-{{ $ipv4PoolEntry := get $raw "ipv4-subnet-pool" | default (dict) }}
-{{ $ipv4PoolResource := $ipv4PoolEntry.resource | default (dict) }}
-{{ $ipv4PoolStatus := $ipv4PoolResource.status | default (dict) }}
-{{ $ipv4PoolAtProvider := $ipv4PoolStatus.atProvider | default (dict) }}
-
-{{ $ipv4SubnetPoolId := $ipv4PoolAtProvider.id | default "" }}
-{{ $ipv4PoolExists := get $readiness "ipv4-subnet-pool" | default false }}
-{{ $ipv4PoolCidrReady := get $readiness "ipv4-subnet-pool-cidr" | default false }}
-# subnetPoolReady = pool exists and has ID (for gating CIDR creation)
-{{ $ipv4SubnetPoolReady := and $ipv4PoolExists (ne $ipv4SubnetPoolId "") }}
-# subnetPoolFullyReady = pool + CIDR both ready (for gating allocations)
-{{ $ipv4SubnetPoolFullyReady := and $ipv4SubnetPoolReady $ipv4PoolCidrReady }}
-
-# IPv4 allocation CIDRs - will be populated if allocations exist
-{{ $ipv4Allocations := dict }}
-
-# ==============================================================================
-# IPv6 ULA Subnet Pool Observations
-# ==============================================================================
-{{ $ipv6PoolEntry := get $raw "ipv6-subnet-pool" | default (dict) }}
-{{ $ipv6PoolResource := $ipv6PoolEntry.resource | default (dict) }}
-{{ $ipv6PoolStatus := $ipv6PoolResource.status | default (dict) }}
-{{ $ipv6PoolAtProvider := $ipv6PoolStatus.atProvider | default (dict) }}
-
-{{ $ipv6SubnetPoolId := $ipv6PoolAtProvider.id | default "" }}
-{{ $ipv6PoolExists := get $readiness "ipv6-subnet-pool" | default false }}
-{{ $ipv6PoolCidrReady := get $readiness "ipv6-subnet-pool-cidr" | default false }}
-# subnetPoolReady = pool exists and has ID (for gating CIDR creation)
-{{ $ipv6SubnetPoolReady := and $ipv6PoolExists (ne $ipv6SubnetPoolId "") }}
-# subnetPoolFullyReady = pool + CIDR both ready (for gating allocations)
-{{ $ipv6SubnetPoolFullyReady := and $ipv6SubnetPoolReady $ipv6PoolCidrReady }}
-
-# IPv6 ULA allocation CIDRs - will be populated if allocations exist
-{{ $ipv6UlaAllocations := dict }}
-
-# ==============================================================================
-# Extract IPv4 Allocation CIDRs (by scanning observed resources)
-# ==============================================================================
-{{ range $name, $entry := $raw }}
-  {{ if hasPrefix "ipv4-alloc-" $name }}
-    {{ $allocResource := $entry.resource | default (dict) }}
-    {{ $allocStatus := $allocResource.status | default (dict) }}
-    {{ $allocAtProvider := $allocStatus.atProvider | default (dict) }}
-    {{ $cidr := $allocAtProvider.cidr | default "" }}
-    {{ if $cidr }}
-      # Extract subnet key from resource name: "ipv4-alloc-private-a" -> "private-a"
-      {{ $subnetKey := trimPrefix "ipv4-alloc-" $name }}
-      {{ $ipv4Allocations = merge $ipv4Allocations (dict $subnetKey $cidr) }}
-    {{ end }}
-  {{ end }}
-{{ end }}
-
-# ==============================================================================
-# Extract IPv6 ULA Allocation CIDRs (by scanning observed resources)
-# ==============================================================================
-{{ range $name, $entry := $raw }}
-  {{ if hasPrefix "ipv6-alloc-" $name }}
-    {{ $allocResource := $entry.resource | default (dict) }}
-    {{ $allocStatus := $allocResource.status | default (dict) }}
-    {{ $allocAtProvider := $allocStatus.atProvider | default (dict) }}
-    {{ $cidr := $allocAtProvider.cidr | default "" }}
-    {{ if $cidr }}
-      # Extract subnet key from resource name: "ipv6-alloc-private-a" -> "private-a"
-      {{ $subnetKey := trimPrefix "ipv6-alloc-" $name }}
-      {{ $ipv6UlaAllocations = merge $ipv6UlaAllocations (dict $subnetKey $cidr) }}
-    {{ end }}
-  {{ end }}
-{{ end }}
-
-# ==============================================================================
-# Build IPAM observed state
-# ==============================================================================
+# Build minimal IPAM observed state for compatibility
+# Subnet CIDRs are now calculated via cidrmath, not observed from IPAM allocations
 {{ $observed = merge $observed (dict "ipam" (dict
   "ipv4" (dict
-    "subnetPoolId" $ipv4SubnetPoolId
-    "subnetPoolReady" $ipv4SubnetPoolReady
-    "subnetPoolFullyReady" $ipv4SubnetPoolFullyReady
-    "allocations" $ipv4Allocations
+    "enabled" false
   )
   "ipv6Ula" (dict
-    "subnetPoolId" $ipv6SubnetPoolId
-    "subnetPoolReady" $ipv6SubnetPoolReady
-    "subnetPoolFullyReady" $ipv6SubnetPoolFullyReady
-    "allocations" $ipv6UlaAllocations
+    "enabled" false
   )
 )) }}

@@ -1,23 +1,27 @@
 # code: language=yaml
 #
 # Build subnet state from spec + $observed
-# Mode detection, VPC CIDR abstraction, and subnet list building
+# Mode detection, VPC CIDR abstraction, and subnet list building with cidrmath
 # Depends on: 000-004 ($observed), 005-state-spec (all spec variables)
 #
 
 # ==============================================================================
 # Mode Detection
 # ==============================================================================
-{{ $ipamMode := $ipv4AllocationEnabled }}
+# IPAM mode: VPC CIDR comes from IPAM pool allocation
+{{ $ipamMode := $ipv4IpamEnabled }}
+# Manual mode: VPC CIDR is explicitly specified
 {{ $manualMode := and (not $ipamMode) (ne $vpcCidrSpec "") }}
+# Layout mode: using subnetLayout to auto-calculate subnets (works with both IPAM and manual)
+{{ $layoutMode := or $ipamMode (and $manualMode (gt (len $layoutAzs) 0) (eq (len $subnetsSpec) 0)) }}
 
-# Enable ULA flag when using allocation (for IPv6 detection)
-{{ if $ipv6UlaAllocationEnabled }}
+# Enable ULA flag when using IPAM allocation (for IPv6 detection)
+{{ if $ipv6UlaIpamEnabled }}
   {{ $ulaEnabled = true }}
 {{ end }}
 
 # IPv6 flags
-{{ $hasIpv6 := or $ulaEnabled $amazonIpv6Enabled $ipv6UlaAllocationEnabled }}
+{{ $hasIpv6 := or $ulaEnabled $amazonIpv6Enabled $ipv6UlaIpamEnabled }}
 
 # ==============================================================================
 # VPC CIDR - Abstracted Source
@@ -31,6 +35,9 @@
   {{ $vpcCidr = $observed.vpc.cidr }}
 {{ end }}
 
+# IPv6 VPC CIDR (from observed, regardless of source)
+{{ $vpcIpv6Cidr := $observed.vpc.ipv6Cidr }}
+
 # ==============================================================================
 # Build Subnet Lists
 # ==============================================================================
@@ -39,9 +46,9 @@
 {{ $availabilityZones := list }}
 
 # ------------------------------------------------------------------------------
-# Manual Mode: Build subnet configs from explicit spec.subnets[]
+# Manual Mode with explicit subnets: Build from spec.subnets[]
 # ------------------------------------------------------------------------------
-{{ if $manualMode }}
+{{ if and $manualMode (not $layoutMode) }}
   {{ $azSet := dict }}
 
   {{ range $subnet := $subnetsSpec }}
@@ -108,27 +115,55 @@
 {{ end }}
 
 # ------------------------------------------------------------------------------
-# IPAM Mode: Build subnet configs from observed IPAM allocations
+# Layout Mode: Calculate subnet CIDRs from VPC CIDR
+# Works with both IPAM and manual VPC CIDR
+# Uses manual CIDR calculation since cidrSubnet isn't available
 # ------------------------------------------------------------------------------
-{{ if $ipamMode }}
-  # Use IPv4 allocation AZs as the source of truth
-  {{ $availabilityZones = $ipv4AllocAzs | sortAlpha }}
+{{ if $layoutMode }}
+  {{ $availabilityZones = $layoutAzs | sortAlpha }}
+  {{ $numAzs := len $availabilityZones }}
 
-  # Get allocations from $observed namespace
-  {{ $ipv4Allocations := $observed.ipam.ipv4.allocations }}
-  {{ $ipv6UlaAllocations := $observed.ipam.ipv6Ula.allocations }}
+  # Only calculate subnets if we have a VPC CIDR
+  {{ if ne $vpcCidr "" }}
+    # Parse VPC CIDR: "10.0.0.0/16" -> octets [10, 0, 0, 0] and prefix 16
+    {{ $vpcParts := splitList "/" $vpcCidr }}
+    {{ $vpcIp := index $vpcParts 0 }}
+    {{ $vpcPrefix := 16 }}
+    {{ if gt (len $vpcParts) 1 }}
+      {{ $vpcPrefix = index $vpcParts 1 | int }}
+    {{ end }}
 
-  {{ range $az := $ipv4AllocAzs }}
-    {{ $fullAz := printf "%s%s" $awsRegion $az }}
+    {{ $octets := splitList "." $vpcIp }}
+    {{ $octet1 := index $octets 0 }}
+    {{ $octet2 := index $octets 1 }}
 
-    # Public subnet
-    {{ if $ipv4AllocPublicEnabled }}
-      {{ $ipv4Cidr := get $ipv4Allocations (printf "public-%s" $az) | default "" }}
-      {{ $ipv6Cidr := get $ipv6UlaAllocations (printf "public-%s" $az) | default "" }}
+    # For /16 VPC with /24 public and /20 private:
+    # - Public /24: {o1}.{o2}.{index}.0/24 (256 IPs each)
+    # - Private /20: {o1}.{o2}.{16 + index*16}.0/20 (4096 IPs each, starts at .16.0)
+    #
+    # Layout: |--public /24s (0-15)--|--private /20s (16+)--|
 
-      # Only create subnet config when we have the CIDR from allocation
-      {{ if $ipv4Cidr }}
+    {{ $azIndex := 0 }}
+    {{ range $az := $availabilityZones }}
+      {{ $fullAz := printf "%s%s" $awsRegion $az }}
+
+      # Public subnet - /24 starting from .0.0
+      {{ if $layoutPublicEnabled }}
+        {{ $publicThirdOctet := $azIndex }}
+        {{ $publicCidr := printf "%s.%s.%d.0/%d" $octet1 $octet2 $publicThirdOctet $layoutPublicNetmask }}
         {{ $subnetName := printf "%s-public-%s" $networkName $az }}
+
+        # Calculate IPv6 subnet if enabled
+        {{ $ipv6SubnetCidr := "" }}
+        {{ if and $hasIpv6 (ne $vpcIpv6Cidr "") }}
+          # IPv6: parse and calculate /64 subnets from /56 VPC
+          {{ $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
+          {{ $ipv6Base := index $ipv6Parts 0 }}
+          # Simple approach: append subnet index to IPv6 prefix
+          # e.g., fd00:1234:5678::/56 -> fd00:1234:5678:0::/64, fd00:1234:5678:1::/64
+          {{ $ipv6SubnetCidr = printf "%s%d::/64" (trimSuffix "::" $ipv6Base) $azIndex }}
+        {{ end }}
+
         {{ $subnetTags := merge (dict) $awsTags (dict
           "Name" $subnetName
           "hops.ops.com.ai/tier" "public"
@@ -139,29 +174,36 @@
         {{ $config := dict
           "name" $subnetName
           "resourceName" (printf "subnet-public-%s" $az)
-          "cidr" $ipv4Cidr
+          "cidr" $publicCidr
           "az" $fullAz
           "azSuffix" $az
           "public" true
           "mapPublicIpOnLaunch" true
           "tags" $subnetTags
           "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $az)
-          "ipv6UlaCidr" $ipv6Cidr
+          "ipv6UlaCidr" $ipv6SubnetCidr
           "ipv6AmazonCidr" ""
         }}
 
         {{ $publicSubnets = append $publicSubnets $config }}
       {{ end }}
-    {{ end }}
 
-    # Private subnet
-    {{ if $ipv4AllocPrivateEnabled }}
-      {{ $ipv4Cidr := get $ipv4Allocations (printf "private-%s" $az) | default "" }}
-      {{ $ipv6Cidr := get $ipv6UlaAllocations (printf "private-%s" $az) | default "" }}
-
-      # Only create subnet config when we have the CIDR from allocation
-      {{ if $ipv4Cidr }}
+      # Private subnet - /20 starting from .16.0 (skips first /20 block used by public /24s)
+      {{ if $layoutPrivateEnabled }}
+        # Each /20 is 16 third-octets (e.g., .16.0-.31.255, .32.0-.47.255, etc.)
+        {{ $privateThirdOctet := mul (add $azIndex 1) 16 }}
+        {{ $privateCidr := printf "%s.%s.%d.0/%d" $octet1 $octet2 $privateThirdOctet $layoutPrivateNetmask }}
         {{ $subnetName := printf "%s-private-%s" $networkName $az }}
+
+        # Calculate IPv6 subnet if enabled (offset from public)
+        {{ $ipv6SubnetCidr := "" }}
+        {{ if and $hasIpv6 (ne $vpcIpv6Cidr "") }}
+          {{ $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
+          {{ $ipv6Base := index $ipv6Parts 0 }}
+          {{ $ipv6PrivateIndex := add $azIndex $numAzs }}
+          {{ $ipv6SubnetCidr = printf "%s%d::/64" (trimSuffix "::" $ipv6Base) $ipv6PrivateIndex }}
+        {{ end }}
+
         {{ $subnetTags := merge (dict) $awsTags (dict
           "Name" $subnetName
           "hops.ops.com.ai/tier" "private"
@@ -172,19 +214,21 @@
         {{ $config := dict
           "name" $subnetName
           "resourceName" (printf "subnet-private-%s" $az)
-          "cidr" $ipv4Cidr
+          "cidr" $privateCidr
           "az" $fullAz
           "azSuffix" $az
           "public" false
           "mapPublicIpOnLaunch" false
           "tags" $subnetTags
           "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $az)
-          "ipv6UlaCidr" $ipv6Cidr
+          "ipv6UlaCidr" $ipv6SubnetCidr
           "ipv6AmazonCidr" ""
         }}
 
         {{ $privateSubnets = append $privateSubnets $config }}
       {{ end }}
+
+      {{ $azIndex = add $azIndex 1 }}
     {{ end }}
   {{ end }}
 {{ end }}
@@ -194,4 +238,3 @@
 # ==============================================================================
 {{ $hasPublicSubnets := gt (len $publicSubnets) 0 }}
 {{ $hasPrivateSubnets := gt (len $privateSubnets) 0 }}
-

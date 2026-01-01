@@ -13,26 +13,14 @@ kind: {{ $xr.kind }}
 status:
   ready: {{ $observed.vpc.ready }}
   {{- if $state.mode.ipam }}
-  allocations:
+  ipam:
     {{- if $state.ipam.ipv4.enabled }}
     ipv4:
-      ready: {{ and $observed.vpc.ready $observed.ipam.ipv4.subnetPoolFullyReady }}
       cidr: {{ $observed.vpc.cidr | default "Pending" }}
-      subnetPoolId: {{ $observed.ipam.ipv4.subnetPoolId | default "Pending" }}
-      {{- if gt (len $observed.ipam.ipv4.allocations) 0 }}
-      subnets:
-        {{ $observed.ipam.ipv4.allocations | toYaml | nindent 8 }}
-      {{- end }}
     {{- end }}
     {{- if $state.ipam.ipv6Ula.enabled }}
     ipv6Ula:
-      ready: {{ and $observed.vpc.ready $observed.ipam.ipv6Ula.subnetPoolFullyReady }}
       cidr: {{ $observed.vpc.ipv6Cidr | default "Pending" }}
-      subnetPoolId: {{ $observed.ipam.ipv6Ula.subnetPoolId | default "Pending" }}
-      {{- if gt (len $observed.ipam.ipv6Ula.allocations) 0 }}
-      subnets:
-        {{ $observed.ipam.ipv6Ula.allocations | toYaml | nindent 8 }}
-      {{- end }}
     {{- end }}
   {{- end }}
   network:

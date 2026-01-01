@@ -1,0 +1,22 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: Subnet
+metadata:
+  name: with-ipam-public-b
+  annotations:
+    crossplane.io/composition-resource-name: subnet-public-b
+    gotemplating.fn.crossplane.io/composition-resource-name: subnet-public-b
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+    - type: Synced
+      status: "True"
+  atProvider:
+    id: subnet-pub-b-0123456789
+    arn: arn:aws:ec2:us-east-1:123456789012:subnet/subnet-pub-b-0123456789
+    vpcId: vpc-0123456789abcdef0
+    cidrBlock: "10.100.201.0/24"
+    ipv6CidrBlock: "fd00:100:0:101::/64"
+    availabilityZone: us-east-1b
+    availabilityZoneId: use1-az2
+    mapPublicIpOnLaunch: true

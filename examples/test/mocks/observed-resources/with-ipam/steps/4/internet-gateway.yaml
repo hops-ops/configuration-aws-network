@@ -1,0 +1,18 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: InternetGateway
+metadata:
+  name: with-ipam
+  annotations:
+    crossplane.io/composition-resource-name: internet-gateway
+    gotemplating.fn.crossplane.io/composition-resource-name: internet-gateway
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+    - type: Synced
+      status: "True"
+  atProvider:
+    id: igw-0123456789abcdef0
+    arn: arn:aws:ec2:us-east-1:123456789012:internet-gateway/igw-0123456789abcdef0
+    vpcId: vpc-0123456789abcdef0
+    ownerId: "123456789012"

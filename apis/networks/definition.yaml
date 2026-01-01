@@ -55,17 +55,16 @@ spec:
                     description: Kind of the provider config reference.
                     default: ProviderConfig
 
-              # IPAM - auto-allocate CIDRs from IPAM pools
+              # IPAM - allocate VPC CIDR from IPAM pool, subnets calculated via cidrmath
               ipam:
                 type: object
                 description: |
-                  Enable automatic CIDR allocation from IPAM pools.
-                  When specified, vpc.cidr and subnets become optional.
-                  CIDRs are allocated from IPAM and exposed in status.
+                  Enable automatic VPC CIDR allocation from an IPAM pool.
+                  Subnet CIDRs are calculated from the VPC CIDR using cidrmath.
                 properties:
                   ipv4:
                     type: object
-                    description: IPv4 network allocation configuration.
+                    description: IPv4 VPC allocation from IPAM.
                     properties:
                       enabled:
                         type: boolean
@@ -73,63 +72,14 @@ spec:
                         default: false
                       poolId:
                         type: string
-                        description: IPAM pool ID to allocate from.
-                      scopeId:
-                        type: string
-                        description: IPAM scope ID for creating child pools.
-                      locale:
-                        type: string
-                        description: |
-                          IPAM pool locale. Defaults to the network region.
-                          Must match the parent pool's locale.
-                      vpc:
-                        type: object
-                        description: VPC allocation settings.
-                        properties:
-                          netmaskLength:
-                            type: integer
-                            description: Netmask length for VPC CIDR (e.g., 16 for /16).
-                            default: 16
-                      subnets:
-                        type: object
-                        description: Subnet allocation settings.
-                        properties:
-                          availabilityZones:
-                            type: array
-                            description: AZ suffixes for subnet creation (e.g., ["a", "b", "c"]).
-                            items:
-                              type: string
-                            default:
-                            - a
-                            - b
-                            - c
-                          public:
-                            type: object
-                            description: Public subnet allocation settings.
-                            properties:
-                              enabled:
-                                type: boolean
-                                description: Create public subnets.
-                                default: true
-                              netmaskLength:
-                                type: integer
-                                description: Netmask length for public subnets.
-                                default: 24
-                          private:
-                            type: object
-                            description: Private subnet allocation settings.
-                            properties:
-                              enabled:
-                                type: boolean
-                                description: Create private subnets.
-                                default: true
-                              netmaskLength:
-                                type: integer
-                                description: Netmask length for private subnets.
-                                default: 20
+                        description: IPAM pool ID to allocate VPC CIDR from.
+                      netmaskLength:
+                        type: integer
+                        description: Netmask length for VPC CIDR (e.g., 16 for /16).
+                        default: 16
                   ipv6Ula:
                     type: object
-                    description: IPv6 ULA network allocation configuration.
+                    description: IPv6 ULA VPC allocation from IPAM.
                     properties:
                       enabled:
                         type: boolean
@@ -137,60 +87,52 @@ spec:
                         default: false
                       poolId:
                         type: string
-                        description: IPAM pool ID to allocate from.
-                      scopeId:
-                        type: string
-                        description: IPAM scope ID for creating child pools.
-                      locale:
-                        type: string
-                        description: |
-                          IPAM pool locale. Defaults to the network region.
-                          Must match the parent pool's locale.
-                      vpc:
-                        type: object
-                        description: VPC allocation settings.
-                        properties:
-                          netmaskLength:
-                            type: integer
-                            description: Netmask length for VPC IPv6 CIDR. AWS requires /56.
-                            default: 56
-                      subnets:
-                        type: object
-                        description: Subnet allocation settings.
-                        properties:
-                          availabilityZones:
-                            type: array
-                            description: AZ suffixes for subnet creation (e.g., ["a", "b", "c"]).
-                            items:
-                              type: string
-                            default:
-                            - a
-                            - b
-                            - c
-                          public:
-                            type: object
-                            description: Public subnet allocation settings.
-                            properties:
-                              enabled:
-                                type: boolean
-                                description: Create public subnets.
-                                default: true
-                              netmaskLength:
-                                type: integer
-                                description: Netmask length for public subnets.
-                                default: 64
-                          private:
-                            type: object
-                            description: Private subnet allocation settings.
-                            properties:
-                              enabled:
-                                type: boolean
-                                description: Create private subnets.
-                                default: true
-                              netmaskLength:
-                                type: integer
-                                description: Netmask length for private subnets.
-                                default: 64
+                        description: IPAM pool ID to allocate VPC IPv6 CIDR from.
+                      netmaskLength:
+                        type: integer
+                        description: Netmask length for VPC IPv6 CIDR. AWS requires /56.
+                        default: 56
+
+              # Subnet layout - used with both IPAM and manual VPC CIDR
+              subnetLayout:
+                type: object
+                description: |
+                  Subnet layout configuration. When using IPAM, subnets are
+                  automatically calculated from the VPC CIDR using cidrmath.
+                properties:
+                  availabilityZones:
+                    type: array
+                    description: AZ suffixes for subnet creation (e.g., ["a", "b", "c"]).
+                    items:
+                      type: string
+                    default:
+                    - a
+                    - b
+                    - c
+                  public:
+                    type: object
+                    description: Public subnet settings.
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Create public subnets.
+                        default: true
+                      netmaskLength:
+                        type: integer
+                        description: Netmask length for public subnets (e.g., 24 for /24).
+                        default: 24
+                  private:
+                    type: object
+                    description: Private subnet settings.
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Create private subnets.
+                        default: true
+                      netmaskLength:
+                        type: integer
+                        description: Netmask length for private subnets (e.g., 20 for /20).
+                        default: 20
 
               # AWS Configuration (top-level since this is an AWS XRD)
               region:
@@ -370,48 +312,24 @@ spec:
             properties:
               ready:
                 type: boolean
-              allocations:
+              ipam:
                 type: object
-                description: Status of network allocations when using IPAM.
+                description: IPAM allocation status (when using IPAM for VPC CIDR).
                 properties:
                   ipv4:
                     type: object
-                    description: IPv4 allocation status.
+                    description: IPv4 IPAM allocation status.
                     properties:
-                      ready:
-                        type: boolean
                       cidr:
                         type: string
-                        description: Allocated VPC IPv4 CIDR.
-                      vpcPoolId:
-                        type: string
-                        description: VPC IPAM pool ID.
-                      subnetPoolId:
-                        type: string
-                        description: Subnet IPAM pool ID.
-                      subnets:
-                        type: object
-                        description: Map of subnet name to allocated CIDR.
-                        x-kubernetes-preserve-unknown-fields: true
+                        description: Allocated VPC IPv4 CIDR from IPAM.
                   ipv6Ula:
                     type: object
-                    description: IPv6 ULA allocation status.
+                    description: IPv6 ULA IPAM allocation status.
                     properties:
-                      ready:
-                        type: boolean
                       cidr:
                         type: string
-                        description: Allocated VPC IPv6 ULA CIDR.
-                      vpcPoolId:
-                        type: string
-                        description: VPC IPAM pool ID.
-                      subnetPoolId:
-                        type: string
-                        description: Subnet IPAM pool ID.
-                      subnets:
-                        type: object
-                        description: Map of subnet name to allocated CIDR.
-                        x-kubernetes-preserve-unknown-fields: true
+                        description: Allocated VPC IPv6 ULA CIDR from IPAM.
               network:
                 type: object
                 properties:

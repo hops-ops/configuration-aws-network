@@ -1,0 +1,42 @@
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: Network
+metadata:
+  name: auto-subnets
+  namespace: infra
+spec:
+  providerConfigRef:
+    name: default
+  region: us-east-1
+  tags:
+    Environment: development
+    Team: platform
+
+  # Explicit VPC CIDR
+  vpc:
+    cidr: "10.3.0.0/16"
+
+  # Use subnetLayout to auto-calculate subnet CIDRs via cidrmath
+  # Instead of specifying each subnet explicitly
+  subnetLayout:
+    availabilityZones:
+    - a
+    - b
+    - c
+    public:
+      enabled: true
+      netmaskLength: 24  # /24 = 256 IPs per public subnet
+    private:
+      enabled: true
+      netmaskLength: 20  # /20 = 4096 IPs per private subnet
+
+  # This will create:
+  # - auto-subnets-public-a: 10.3.0.0/24
+  # - auto-subnets-public-b: 10.3.1.0/24
+  # - auto-subnets-public-c: 10.3.2.0/24
+  # - auto-subnets-private-a: 10.3.16.0/20
+  # - auto-subnets-private-b: 10.3.32.0/20
+  # - auto-subnets-private-c: 10.3.48.0/20
+
+  nat:
+    enabled: true
+    strategy: SingleAz

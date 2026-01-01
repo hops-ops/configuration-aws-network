@@ -10,17 +10,17 @@ E2E_TESTS := $(wildcard tests/e2etest-*)
 
 # Examples list - mirrors GitHub Actions workflow
 # Format: example_path::observed_resources_path (observed_resources_path is optional)
-# with-allocations is tested at all 4 steps to validate multi-step reconciliation
+# with-ipam is tested at all 4 steps to validate multi-step reconciliation
 EXAMPLES := \
     examples/networks/minimal.yaml:: \
     examples/networks/standard.yaml:: \
     examples/networks/dual-stack-ula.yaml:: \
     examples/networks/dual-stack-amazon.yaml:: \
     examples/networks/high-availability.yaml:: \
-    examples/networks/with-allocations.yaml::examples/test/mocks/observed-resources/with-allocations/steps/1 \
-    examples/networks/with-allocations.yaml::examples/test/mocks/observed-resources/with-allocations/steps/2 \
-    examples/networks/with-allocations.yaml::examples/test/mocks/observed-resources/with-allocations/steps/3 \
-    examples/networks/with-allocations.yaml::examples/test/mocks/observed-resources/with-allocations/steps/4
+    examples/networks/with-ipam.yaml::examples/test/mocks/observed-resources/with-ipam/steps/1 \
+    examples/networks/with-ipam.yaml::examples/test/mocks/observed-resources/with-ipam/steps/2 \
+    examples/networks/with-ipam.yaml::examples/test/mocks/observed-resources/with-ipam/steps/3 \
+    examples/networks/with-ipam.yaml::examples/test/mocks/observed-resources/with-ipam/steps/4
 
 clean:
 	rm -rf _output

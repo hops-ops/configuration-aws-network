@@ -47,43 +47,34 @@
 {{ $amazonIpv6Enabled := $amazonIpv6.enabled | default false }}
 
 # ==============================================================================
-# IPAM Allocation Configuration (from spec)
+# IPAM Configuration (from spec) - VPC CIDR allocation only
 # ==============================================================================
 {{ $ipamConfig := $spec.ipam | default (dict) }}
 
-# IPv4 allocation
-{{ $ipv4Allocation := $ipamConfig.ipv4 | default (dict) }}
-{{ $ipv4AllocationEnabled := $ipv4Allocation.enabled | default false }}
-{{ $ipv4PoolId := $ipv4Allocation.poolId | default "" }}
-{{ $ipv4ScopeId := $ipv4Allocation.scopeId | default "" }}
-{{ $ipv4Locale := $ipv4Allocation.locale | default $awsRegion }}
-{{ $ipv4AllocVpc := $ipv4Allocation.vpc | default (dict) }}
-{{ $ipv4VpcNetmask := $ipv4AllocVpc.netmaskLength | default 16 }}
-{{ $ipv4AllocSubnetsConfig := $ipv4Allocation.subnets | default (dict) }}
-{{ $ipv4AllocAzs := $ipv4AllocSubnetsConfig.availabilityZones | default (list "a" "b" "c") }}
-{{ $ipv4AllocPublic := $ipv4AllocSubnetsConfig.public | default (dict) }}
-{{ $ipv4AllocPublicEnabled := $ipv4AllocPublic.enabled | default true }}
-{{ $ipv4AllocPublicNetmask := $ipv4AllocPublic.netmaskLength | default 24 }}
-{{ $ipv4AllocPrivate := $ipv4AllocSubnetsConfig.private | default (dict) }}
-{{ $ipv4AllocPrivateEnabled := $ipv4AllocPrivate.enabled | default true }}
-{{ $ipv4AllocPrivateNetmask := $ipv4AllocPrivate.netmaskLength | default 20 }}
+# IPv4 IPAM (VPC CIDR from IPAM pool)
+{{ $ipv4Ipam := $ipamConfig.ipv4 | default (dict) }}
+{{ $ipv4IpamEnabled := $ipv4Ipam.enabled | default false }}
+{{ $ipv4IpamPoolId := $ipv4Ipam.poolId | default "" }}
+{{ $ipv4IpamNetmask := $ipv4Ipam.netmaskLength | default 16 }}
 
-# IPv6 ULA allocation
-{{ $ipv6UlaAllocation := $ipamConfig.ipv6Ula | default (dict) }}
-{{ $ipv6UlaAllocationEnabled := $ipv6UlaAllocation.enabled | default false }}
-{{ $ipv6UlaPoolId := $ipv6UlaAllocation.poolId | default "" }}
-{{ $ipv6UlaScopeId := $ipv6UlaAllocation.scopeId | default "" }}
-{{ $ipv6UlaLocale := $ipv6UlaAllocation.locale | default $awsRegion }}
-{{ $ipv6UlaAllocVpc := $ipv6UlaAllocation.vpc | default (dict) }}
-{{ $ipv6UlaVpcNetmask := $ipv6UlaAllocVpc.netmaskLength | default 56 }}
-{{ $ipv6UlaAllocSubnetsConfig := $ipv6UlaAllocation.subnets | default (dict) }}
-{{ $ipv6UlaAllocAzs := $ipv6UlaAllocSubnetsConfig.availabilityZones | default (list "a" "b" "c") }}
-{{ $ipv6UlaAllocPublic := $ipv6UlaAllocSubnetsConfig.public | default (dict) }}
-{{ $ipv6UlaAllocPublicEnabled := $ipv6UlaAllocPublic.enabled | default true }}
-{{ $ipv6UlaAllocPublicNetmask := $ipv6UlaAllocPublic.netmaskLength | default 64 }}
-{{ $ipv6UlaAllocPrivate := $ipv6UlaAllocSubnetsConfig.private | default (dict) }}
-{{ $ipv6UlaAllocPrivateEnabled := $ipv6UlaAllocPrivate.enabled | default true }}
-{{ $ipv6UlaAllocPrivateNetmask := $ipv6UlaAllocPrivate.netmaskLength | default 64 }}
+# IPv6 ULA IPAM (VPC CIDR from IPAM pool)
+{{ $ipv6UlaIpam := $ipamConfig.ipv6Ula | default (dict) }}
+{{ $ipv6UlaIpamEnabled := $ipv6UlaIpam.enabled | default false }}
+{{ $ipv6UlaIpamPoolId := $ipv6UlaIpam.poolId | default "" }}
+{{ $ipv6UlaIpamNetmask := $ipv6UlaIpam.netmaskLength | default 56 }}
+
+# ==============================================================================
+# Subnet Layout Configuration (from spec)
+# Used with both IPAM and manual VPC CIDR - subnets calculated via cidrmath
+# ==============================================================================
+{{ $subnetLayout := $spec.subnetLayout | default (dict) }}
+{{ $layoutAzs := $subnetLayout.availabilityZones | default (list "a" "b" "c") }}
+{{ $layoutPublic := $subnetLayout.public | default (dict) }}
+{{ $layoutPublicEnabled := $layoutPublic.enabled | default true }}
+{{ $layoutPublicNetmask := $layoutPublic.netmaskLength | default 24 }}
+{{ $layoutPrivate := $subnetLayout.private | default (dict) }}
+{{ $layoutPrivateEnabled := $layoutPrivate.enabled | default true }}
+{{ $layoutPrivateNetmask := $layoutPrivate.netmaskLength | default 20 }}
 
 # ==============================================================================
 # NAT Configuration (from spec)

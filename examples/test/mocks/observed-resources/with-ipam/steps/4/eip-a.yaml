@@ -1,0 +1,18 @@
+apiVersion: ec2.aws.m.upbound.io/v1beta1
+kind: EIP
+metadata:
+  name: with-ipam-nat-a
+  annotations:
+    crossplane.io/composition-resource-name: eip-nat-a
+    gotemplating.fn.crossplane.io/composition-resource-name: eip-nat-a
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+    - type: Synced
+      status: "True"
+  atProvider:
+    id: eipalloc-0123456789abcdef0
+    allocationId: eipalloc-0123456789abcdef0
+    publicIp: "203.0.113.10"
+    domain: vpc
