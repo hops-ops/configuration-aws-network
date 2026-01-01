@@ -14,13 +14,10 @@ _base64_creds = base64.encode(_creds)
 # Persistent infrastructure - update these if re-creating the test environment
 # =============================================================================
 #
-# IPAM Pools and Scopes - persistent infrastructure from aws-ipam e2e test
-# To get scope IDs, run:
-#   aws ec2 describe-ipam-scopes --query 'IpamScopes[*].[IpamScopeId,IpamScopeType]' --output table
+# IPAM Pools - persistent infrastructure from aws-ipam e2e test
+# To get pool IDs, run:
+#   aws ec2 describe-ipam-pools --query 'IpamPools[*].[IpamPoolId,AddressFamily,Description]' --output table
 #
-# Per-network child pools require scopeId when subnetPool.enabled is true
-_ipam_private_scope_id = "ipam-scope-0ba795a6462cbb518"  # Private scope for IPv4 and IPv6 ULA
-
 _ipv4_private_pool_id = "ipam-pool-0607416fa3707147a"
 _ipv6_private_pool_id = "ipam-pool-0ca730678e463dbfc"
 
@@ -51,45 +48,29 @@ _items = [
                             "e2etest": "true"
                             "test-run": _now
                         }
-                        # Use IPAM to auto-allocate CIDRs
+                        # Use IPAM to auto-allocate VPC CIDRs
                         ipam: {
                             ipv4: {
                                 enabled: True
                                 poolId: _ipv4_private_pool_id
-                                scopeId: _ipam_private_scope_id
-                                vpc: {
-                                    netmaskLength: 16
-                                }
-                                subnets: {
-                                    availabilityZones: ["a", "b"]
-                                    public: {
-                                        enabled: True
-                                        netmaskLength: 24
-                                    }
-                                    private: {
-                                        enabled: True
-                                        netmaskLength: 20
-                                    }
-                                }
+                                netmaskLength: 16
                             }
                             ipv6Ula: {
                                 enabled: True
                                 poolId: _ipv6_private_pool_id
-                                scopeId: _ipam_private_scope_id
-                                vpc: {
-                                    netmaskLength: 56  # AWS requires /56 for VPC IPv6
-                                }
-                                subnets: {
-                                    availabilityZones: ["a", "b"]
-                                    public: {
-                                        enabled: True
-                                        netmaskLength: 64
-                                    }
-                                    private: {
-                                        enabled: True
-                                        netmaskLength: 64
-                                    }
-                                }
+                                netmaskLength: 56  # AWS requires /56 for VPC IPv6
+                            }
+                        }
+                        # Subnet layout - CIDRs calculated from VPC CIDR
+                        subnetLayout: {
+                            availabilityZones: ["a", "b"]
+                            public: {
+                                enabled: True
+                                netmaskLength: 24
+                            }
+                            private: {
+                                enabled: True
+                                netmaskLength: 20
                             }
                         }
                         # No NAT gateway (costs money) - use IPv6 egress-only IGW instead

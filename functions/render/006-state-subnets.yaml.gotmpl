@@ -117,7 +117,8 @@
 # ------------------------------------------------------------------------------
 # Layout Mode: Calculate subnet CIDRs from VPC CIDR
 # Works with both IPAM and manual VPC CIDR
-# Uses manual CIDR calculation since cidrSubnet isn't available
+# Uses manual CIDR calculation since ipam subnet pools isn't available
+# programatically yet
 # ------------------------------------------------------------------------------
 {{ if $layoutMode }}
   {{ $availabilityZones = $layoutAzs | sortAlpha }}
