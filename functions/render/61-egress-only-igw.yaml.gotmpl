@@ -13,10 +13,13 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "egress-only-igw" }}
+    {{- if $state.eigw.externalName }}
+    crossplane.io/external-name: {{ $state.eigw.externalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.eigw.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -62,7 +65,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:

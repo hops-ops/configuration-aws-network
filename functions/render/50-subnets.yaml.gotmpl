@@ -12,6 +12,8 @@
 # ==============================================================================
 {{- range $subnet := $state.subnets.public }}
 {{- if ne $subnet.cidr "" }}
+{{- $subnetExternalName := $subnet.externalName | default "" }}
+{{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.managementPolicies }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
@@ -19,10 +21,13 @@ metadata:
   name: {{ $subnet.name }}
   annotations:
     {{ setResourceNameAnnotation $subnet.resourceName }}
+    {{- if $subnetExternalName }}
+    crossplane.io/external-name: {{ $subnetExternalName | quote }}
+    {{- end }}
   labels:
     {{ $subnet.labels | toYaml | nindent 4 }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $subnetMgmtPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     availabilityZone: {{ $subnet.az }}
@@ -70,6 +75,8 @@ spec:
 # ==============================================================================
 {{- range $subnet := $state.subnets.private }}
 {{- if ne $subnet.cidr "" }}
+{{- $subnetExternalName := $subnet.externalName | default "" }}
+{{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.managementPolicies }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
@@ -77,10 +84,13 @@ metadata:
   name: {{ $subnet.name }}
   annotations:
     {{ setResourceNameAnnotation $subnet.resourceName }}
+    {{- if $subnetExternalName }}
+    crossplane.io/external-name: {{ $subnetExternalName | quote }}
+    {{- end }}
   labels:
     {{ $subnet.labels | toYaml | nindent 4 }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $subnetMgmtPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     availabilityZone: {{ $subnet.az }}

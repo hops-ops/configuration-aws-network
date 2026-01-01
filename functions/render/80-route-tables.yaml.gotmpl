@@ -11,6 +11,7 @@
 # Public Route Table (shared across all public subnets)
 # ==============================================================================
 {{- if $state.subnets.hasPublic }}
+{{- $publicRtExternalName := get $state.routing.externalNames "public" | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
@@ -18,11 +19,14 @@ metadata:
   name: {{ $state.routing.publicRouteTableName }}
   annotations:
     {{ setResourceNameAnnotation "rt-public" }}
+    {{- if $publicRtExternalName }}
+    crossplane.io/external-name: {{ $publicRtExternalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
     hops.ops.com.ai/tier: public
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -58,6 +62,8 @@ spec:
 
 # Public subnet associations
 {{- range $subnet := $state.subnets.public }}
+{{- $rtaKey := printf "public-%s" $subnet.azSuffix }}
+{{- $rtaExternalName := get $state.routing.associationExternalNames $rtaKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
@@ -65,10 +71,13 @@ metadata:
   name: {{ $subnet.name }}-rta
   annotations:
     {{ setResourceNameAnnotation (printf "rta-%s" $subnet.resourceName) }}
+    {{- if $rtaExternalName }}
+    crossplane.io/external-name: {{ $rtaExternalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
@@ -86,6 +95,8 @@ spec:
 # ==============================================================================
 {{- range $rt := $state.routing.privateRouteTables }}
 {{ $rtObs := get $observed.rt.private $rt.resourceName | default (dict) }}
+{{- $privateRtKey := printf "private-%s" $rt.azSuffix }}
+{{- $privateRtExternalName := get $state.routing.externalNames $privateRtKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
@@ -93,12 +104,15 @@ metadata:
   name: {{ $rt.name }}
   annotations:
     {{ setResourceNameAnnotation $rt.resourceName }}
+    {{- if $privateRtExternalName }}
+    crossplane.io/external-name: {{ $privateRtExternalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
     hops.ops.com.ai/tier: private
     hops.ops.com.ai/az: {{ $rt.azSuffix }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -137,6 +151,8 @@ spec:
 {{- range $subnet := $state.subnets.private }}
 {{- $rt := get $state.routing.privateRtByAz $subnet.azSuffix }}
 {{- if $rt }}
+{{- $rtaKey := printf "private-%s" $subnet.azSuffix }}
+{{- $rtaExternalName := get $state.routing.associationExternalNames $rtaKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
@@ -144,10 +160,13 @@ metadata:
   name: {{ $subnet.name }}-rta
   annotations:
     {{ setResourceNameAnnotation (printf "rta-%s" $subnet.resourceName) }}
+    {{- if $rtaExternalName }}
+    crossplane.io/external-name: {{ $rtaExternalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:

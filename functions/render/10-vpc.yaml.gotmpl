@@ -13,10 +13,13 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "vpc" }}
+    {{- if $state.vpc.externalName }}
+    crossplane.io/external-name: {{ $state.vpc.externalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.vpc.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     enableDnsHostnames: {{ $state.vpc.enableDnsHostnames }}

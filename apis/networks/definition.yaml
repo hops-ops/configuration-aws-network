@@ -133,6 +133,24 @@ spec:
                         type: integer
                         description: Netmask length for private subnets (e.g., 20 for /20).
                         default: 20
+                  externalNames:
+                    type: object
+                    description: |
+                      Map of subnet keys to existing AWS subnet IDs for import.
+                      Keys use pattern "{tier}-{az}" (e.g., "public-a", "private-b").
+                    x-kubernetes-preserve-unknown-fields: true
+                  managementPolicies:
+                    type: array
+                    description: Management operations for layout subnets. Overrides top-level if set.
+                    items:
+                      type: string
+                      enum:
+                      - "*"
+                      - Create
+                      - Observe
+                      - Update
+                      - Delete
+                      - LateInitialize
 
               # AWS Configuration (top-level since this is an AWS XRD)
               region:
@@ -149,6 +167,23 @@ spec:
                 description: |
                   VPC configuration. CIDR can be explicit or from networkAllocations.
                 properties:
+                  externalName:
+                    type: string
+                    description: |
+                      VPC ID to adopt (e.g., vpc-0123456789abcdef0).
+                      When set, Crossplane imports the existing VPC instead of creating a new one.
+                  managementPolicies:
+                    type: array
+                    description: Management operations for this VPC. Overrides top-level if set.
+                    items:
+                      type: string
+                      enum:
+                      - "*"
+                      - Create
+                      - Observe
+                      - Update
+                      - Delete
+                      - LateInitialize
                   cidr:
                     type: string
                     description: |
@@ -207,6 +242,23 @@ spec:
                     name:
                       type: string
                       description: Subnet name (e.g., "public-a", "private-b").
+                    externalName:
+                      type: string
+                      description: |
+                        Subnet ID to adopt (e.g., subnet-0123456789abcdef0).
+                        When set, Crossplane imports the existing subnet instead of creating a new one.
+                    managementPolicies:
+                      type: array
+                      description: Management operations for this subnet. Overrides top-level if set.
+                      items:
+                        type: string
+                        enum:
+                        - "*"
+                        - Create
+                        - Observe
+                        - Update
+                        - Delete
+                        - LateInitialize
                     cidr:
                       type: string
                       description: |
@@ -234,6 +286,52 @@ spec:
                             Amazon-provided IPv6 CIDR block for this subnet (/64).
                             Set after VPC gets Amazon-provided IPv6.
 
+              # Internet Gateway
+              internetGateway:
+                type: object
+                description: Internet Gateway configuration.
+                properties:
+                  externalName:
+                    type: string
+                    description: |
+                      IGW ID to adopt (e.g., igw-0123456789abcdef0).
+                      When set, Crossplane imports the existing IGW instead of creating a new one.
+                  managementPolicies:
+                    type: array
+                    description: Management operations for the IGW. Overrides top-level if set.
+                    items:
+                      type: string
+                      enum:
+                      - "*"
+                      - Create
+                      - Observe
+                      - Update
+                      - Delete
+                      - LateInitialize
+
+              # Egress-Only Internet Gateway (IPv6)
+              egressOnlyInternetGateway:
+                type: object
+                description: Egress-only Internet Gateway configuration for IPv6.
+                properties:
+                  externalName:
+                    type: string
+                    description: |
+                      EIGW ID to adopt (e.g., eigw-0123456789abcdef0).
+                      When set, Crossplane imports the existing EIGW instead of creating a new one.
+                  managementPolicies:
+                    type: array
+                    description: Management operations for the EIGW. Overrides top-level if set.
+                    items:
+                      type: string
+                      enum:
+                      - "*"
+                      - Create
+                      - Observe
+                      - Update
+                      - Delete
+                      - LateInitialize
+
               # NAT Gateway Strategy
               nat:
                 type: object
@@ -251,6 +349,60 @@ spec:
                     - HighlyAvailable
                     - None
                     default: SingleAz
+                  managementPolicies:
+                    type: array
+                    description: Management operations for NAT gateways and EIPs. Overrides top-level if set.
+                    items:
+                      type: string
+                      enum:
+                      - "*"
+                      - Create
+                      - Observe
+                      - Update
+                      - Delete
+                      - LateInitialize
+                  externalNames:
+                    type: object
+                    description: |
+                      Map of AZ suffix to existing NAT Gateway IDs for import.
+                      Keys are AZ suffixes (e.g., "a", "b", "c").
+                    x-kubernetes-preserve-unknown-fields: true
+                  eipExternalNames:
+                    type: object
+                    description: |
+                      Map of AZ suffix to existing EIP allocation IDs for import.
+                      Keys are AZ suffixes (e.g., "a", "b", "c").
+                    x-kubernetes-preserve-unknown-fields: true
+
+              # Route Tables
+              routeTables:
+                type: object
+                description: Route table configuration.
+                properties:
+                  managementPolicies:
+                    type: array
+                    description: Management operations for route tables. Overrides top-level if set.
+                    items:
+                      type: string
+                      enum:
+                      - "*"
+                      - Create
+                      - Observe
+                      - Update
+                      - Delete
+                      - LateInitialize
+                  externalNames:
+                    type: object
+                    description: |
+                      Map of route table keys to existing AWS route table IDs for import.
+                      Keys: "public" for public RT, "private-{az}" for private RTs.
+                    x-kubernetes-preserve-unknown-fields: true
+                  associationExternalNames:
+                    type: object
+                    description: |
+                      Map of subnet keys to existing route table association IDs for import.
+                      Keys use pattern "{tier}-{az}" (e.g., "public-a", "private-b").
+                    x-kubernetes-preserve-unknown-fields: true
 
               # Transit Gateway
               transitGateway:

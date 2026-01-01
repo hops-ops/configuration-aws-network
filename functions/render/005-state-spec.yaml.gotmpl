@@ -4,107 +4,139 @@
 # This is the first state file - extracts all spec configuration
 # Depends on: 00-04 ($observed namespace)
 #
+# Convention: All intermediate variables use $_ prefix
+# Only $state and $observed are available to resource templates
+#
 
-{{ $xr := getCompositeResource . }}
-{{ $metadata := $xr.metadata | default (dict) }}
-{{ $spec := $xr.spec | default (dict) }}
+{{ $_xr := getCompositeResource . }}
+{{ $_metadata := $_xr.metadata | default (dict) }}
+{{ $_spec := $_xr.spec | default (dict) }}
 
 # ==============================================================================
 # Core Identification (from spec)
 # ==============================================================================
-{{ $networkName := $metadata.name | default "network" }}
-{{ $managementPolicies := $spec.managementPolicies | default (list "*") }}
+{{ $_networkName := $_metadata.name | default "network" }}
+{{ $_managementPolicies := $_spec.managementPolicies | default (list "*") }}
 
 # Provider configuration
-{{ $providerConfigRef := $spec.providerConfigRef | default (dict) }}
-{{ $providerConfigName := $providerConfigRef.name | default "default" }}
-{{ $providerConfigKind := $providerConfigRef.kind | default "ProviderConfig" }}
+{{ $_providerConfigRef := $_spec.providerConfigRef | default (dict) }}
+{{ $_providerConfigName := $_providerConfigRef.name | default "default" }}
+{{ $_providerConfigKind := $_providerConfigRef.kind | default "ProviderConfig" }}
 
 # AWS configuration
-{{ $awsRegion := $spec.region }}
+{{ $_awsRegion := $_spec.region }}
 
 # Default AWS tags
-{{ $defaultTags := dict "hops" "true" "hops.ops.com.ai/network" $networkName }}
-{{ $userTags := $spec.tags | default (dict) }}
-{{ $awsTags := merge (dict) $defaultTags $userTags }}
+{{ $_defaultTags := dict "hops" "true" "hops.ops.com.ai/network" $_networkName }}
+{{ $_userTags := $_spec.tags | default (dict) }}
+{{ $_awsTags := merge (dict) $_defaultTags $_userTags }}
 
 # ==============================================================================
 # VPC Configuration (from spec)
 # ==============================================================================
-{{ $vpc := $spec.vpc | default (dict) }}
-{{ $vpcCidrSpec := $vpc.cidr | default "" }}
-{{ $vpcForProvider := $vpc.forProvider | default (dict) }}
-{{ $enableDnsHostnames := $vpcForProvider.enableDnsHostnames | default true }}
-{{ $enableDnsSupport := $vpcForProvider.enableDnsSupport | default true }}
+{{ $_vpc := $_spec.vpc | default (dict) }}
+{{ $_vpcExternalName := $_vpc.externalName | default "" }}
+{{ $_vpcManagementPolicies := $_vpc.managementPolicies | default $_managementPolicies }}
+{{ $_vpcCidrSpec := $_vpc.cidr | default "" }}
+{{ $_vpcForProvider := $_vpc.forProvider | default (dict) }}
+{{ $_enableDnsHostnames := $_vpcForProvider.enableDnsHostnames | default true }}
+{{ $_enableDnsSupport := $_vpcForProvider.enableDnsSupport | default true }}
 
 # IPv6 configuration
-{{ $vpcIpv6 := $vpc.ipv6 | default (dict) }}
-{{ $ulaIpv6 := $vpcIpv6.ula | default (dict) }}
-{{ $ulaEnabled := $ulaIpv6.enabled | default false }}
-{{ $ulaCidr := $ulaIpv6.cidr | default "" }}
-{{ $ulaIpamPoolId := $ulaIpv6.ipamPoolId | default "" }}
-{{ $amazonIpv6 := $vpcIpv6.amazonProvided | default (dict) }}
-{{ $amazonIpv6Enabled := $amazonIpv6.enabled | default false }}
+{{ $_vpcIpv6 := $_vpc.ipv6 | default (dict) }}
+{{ $_ulaIpv6 := $_vpcIpv6.ula | default (dict) }}
+{{ $_ulaEnabled := $_ulaIpv6.enabled | default false }}
+{{ $_ulaCidr := $_ulaIpv6.cidr | default "" }}
+{{ $_ulaIpamPoolId := $_ulaIpv6.ipamPoolId | default "" }}
+{{ $_amazonIpv6 := $_vpcIpv6.amazonProvided | default (dict) }}
+{{ $_amazonIpv6Enabled := $_amazonIpv6.enabled | default false }}
 
 # ==============================================================================
 # IPAM Configuration (from spec) - VPC CIDR allocation only
 # ==============================================================================
-{{ $ipamConfig := $spec.ipam | default (dict) }}
+{{ $_ipamConfig := $_spec.ipam | default (dict) }}
 
 # IPv4 IPAM (VPC CIDR from IPAM pool)
-{{ $ipv4Ipam := $ipamConfig.ipv4 | default (dict) }}
-{{ $ipv4IpamEnabled := $ipv4Ipam.enabled | default false }}
-{{ $ipv4IpamPoolId := $ipv4Ipam.poolId | default "" }}
-{{ $ipv4IpamNetmask := $ipv4Ipam.netmaskLength | default 16 }}
+{{ $_ipv4Ipam := $_ipamConfig.ipv4 | default (dict) }}
+{{ $_ipv4IpamEnabled := $_ipv4Ipam.enabled | default false }}
+{{ $_ipv4IpamPoolId := $_ipv4Ipam.poolId | default "" }}
+{{ $_ipv4IpamNetmask := $_ipv4Ipam.netmaskLength | default 16 }}
 
 # IPv6 ULA IPAM (VPC CIDR from IPAM pool)
-{{ $ipv6UlaIpam := $ipamConfig.ipv6Ula | default (dict) }}
-{{ $ipv6UlaIpamEnabled := $ipv6UlaIpam.enabled | default false }}
-{{ $ipv6UlaIpamPoolId := $ipv6UlaIpam.poolId | default "" }}
-{{ $ipv6UlaIpamNetmask := $ipv6UlaIpam.netmaskLength | default 56 }}
+{{ $_ipv6UlaIpam := $_ipamConfig.ipv6Ula | default (dict) }}
+{{ $_ipv6UlaIpamEnabled := $_ipv6UlaIpam.enabled | default false }}
+{{ $_ipv6UlaIpamPoolId := $_ipv6UlaIpam.poolId | default "" }}
+{{ $_ipv6UlaIpamNetmask := $_ipv6UlaIpam.netmaskLength | default 56 }}
 
 # ==============================================================================
 # Subnet Layout Configuration (from spec)
 # Used with both IPAM and manual VPC CIDR - subnets calculated via cidrmath
 # ==============================================================================
-{{ $subnetLayout := $spec.subnetLayout | default (dict) }}
-{{ $layoutAzs := $subnetLayout.availabilityZones | default (list "a" "b" "c") }}
-{{ $layoutPublic := $subnetLayout.public | default (dict) }}
-{{ $layoutPublicEnabled := $layoutPublic.enabled | default true }}
-{{ $layoutPublicNetmask := $layoutPublic.netmaskLength | default 24 }}
-{{ $layoutPrivate := $subnetLayout.private | default (dict) }}
-{{ $layoutPrivateEnabled := $layoutPrivate.enabled | default true }}
-{{ $layoutPrivateNetmask := $layoutPrivate.netmaskLength | default 20 }}
+{{ $_subnetLayout := $_spec.subnetLayout | default (dict) }}
+{{ $_layoutAzs := $_subnetLayout.availabilityZones | default (list "a" "b" "c") }}
+{{ $_layoutPublic := $_subnetLayout.public | default (dict) }}
+{{ $_layoutPublicEnabled := $_layoutPublic.enabled | default true }}
+{{ $_layoutPublicNetmask := $_layoutPublic.netmaskLength | default 24 }}
+{{ $_layoutPrivate := $_subnetLayout.private | default (dict) }}
+{{ $_layoutPrivateEnabled := $_layoutPrivate.enabled | default true }}
+{{ $_layoutPrivateNetmask := $_layoutPrivate.netmaskLength | default 20 }}
+{{ $_layoutExternalNames := $_subnetLayout.externalNames | default (dict) }}
+{{ $_layoutManagementPolicies := $_subnetLayout.managementPolicies | default $_managementPolicies }}
+
+# ==============================================================================
+# Internet Gateway Configuration (from spec)
+# ==============================================================================
+{{ $_internetGateway := $_spec.internetGateway | default (dict) }}
+{{ $_igwExternalName := $_internetGateway.externalName | default "" }}
+{{ $_igwManagementPolicies := $_internetGateway.managementPolicies | default $_managementPolicies }}
+
+# ==============================================================================
+# Egress-Only Internet Gateway Configuration (from spec)
+# ==============================================================================
+{{ $_egressOnlyIgw := $_spec.egressOnlyInternetGateway | default (dict) }}
+{{ $_eigwExternalName := $_egressOnlyIgw.externalName | default "" }}
+{{ $_eigwManagementPolicies := $_egressOnlyIgw.managementPolicies | default $_managementPolicies }}
+
+# ==============================================================================
+# Route Tables Configuration (from spec)
+# ==============================================================================
+{{ $_routeTables := $_spec.routeTables | default (dict) }}
+{{ $_routeTableExternalNames := $_routeTables.externalNames | default (dict) }}
+{{ $_routeTableAssociationExternalNames := $_routeTables.associationExternalNames | default (dict) }}
+{{ $_routeTableManagementPolicies := $_routeTables.managementPolicies | default $_managementPolicies }}
 
 # ==============================================================================
 # NAT Configuration (from spec)
 # ==============================================================================
-{{ $nat := $spec.nat | default (dict) }}
-{{ $natEnabled := $nat.enabled | default false }}
-{{ $natStrategy := $nat.strategy | default "SingleAz" }}
-{{ $natStrategyUpper := upper $natStrategy }}
+{{ $_nat := $_spec.nat | default (dict) }}
+{{ $_natEnabled := $_nat.enabled | default false }}
+{{ $_natStrategy := $_nat.strategy | default "SingleAz" }}
+{{ $_natStrategyUpper := upper $_natStrategy }}
+{{ $_natExternalNames := $_nat.externalNames | default (dict) }}
+{{ $_eipExternalNames := $_nat.eipExternalNames | default (dict) }}
+{{ $_natManagementPolicies := $_nat.managementPolicies | default $_managementPolicies }}
 
 # ==============================================================================
 # Flow Logs Configuration (from spec)
 # ==============================================================================
-{{ $flowLogs := $spec.flowLogs | default (dict) }}
-{{ $flowLogsEnabled := $flowLogs.enabled | default false }}
-{{ $flowLogsConfig := $flowLogs.config | default (dict) }}
-{{ $flowLogsDestination := $flowLogsConfig.destination | default "cloudwatch" }}
-{{ $flowLogsDestinationArn := $flowLogsConfig.logDestinationArn | default "" }}
-{{ $flowLogsIamRoleArn := $flowLogsConfig.iamRoleArn | default "" }}
-{{ $flowLogsTrafficType := $flowLogsConfig.trafficType | default "ALL" }}
+{{ $_flowLogs := $_spec.flowLogs | default (dict) }}
+{{ $_flowLogsEnabled := $_flowLogs.enabled | default false }}
+{{ $_flowLogsConfig := $_flowLogs.config | default (dict) }}
+{{ $_flowLogsDestination := $_flowLogsConfig.destination | default "cloudwatch" }}
+{{ $_flowLogsDestinationArn := $_flowLogsConfig.logDestinationArn | default "" }}
+{{ $_flowLogsIamRoleArn := $_flowLogsConfig.iamRoleArn | default "" }}
+{{ $_flowLogsTrafficType := $_flowLogsConfig.trafficType | default "ALL" }}
 
 # ==============================================================================
 # Transit Gateway Configuration (from spec)
 # ==============================================================================
-{{ $transitGateway := $spec.transitGateway | default (dict) }}
-{{ $tgwEnabled := $transitGateway.enabled | default false }}
-{{ $tgwConfig := $transitGateway.config | default (dict) }}
-{{ $tgwId := $tgwConfig.tgwId | default "" }}
-{{ $tgwRouteTablePropagation := $tgwConfig.routeTablePropagation | default true }}
+{{ $_transitGateway := $_spec.transitGateway | default (dict) }}
+{{ $_tgwEnabled := $_transitGateway.enabled | default false }}
+{{ $_tgwConfig := $_transitGateway.config | default (dict) }}
+{{ $_tgwId := $_tgwConfig.tgwId | default "" }}
+{{ $_tgwRouteTablePropagation := $_tgwConfig.routeTablePropagation | default true }}
 
 # ==============================================================================
 # Subnets spec (for manual mode)
 # ==============================================================================
-{{ $subnetsSpec := $spec.subnets | default (list) }}
+{{ $_subnetsSpec := $_spec.subnets | default (list) }}

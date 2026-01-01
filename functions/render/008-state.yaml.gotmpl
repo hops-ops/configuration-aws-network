@@ -2,136 +2,158 @@
 #
 # Build final $state namespace
 # Render flags and unified state dict assembly
-# Depends on: 005 (spec), 006 (subnets), 007 (routing)
+# Depends on: 005 ($_* spec), 006 ($_*Subnets), 007 ($_*routing)
+#
+# Convention: All intermediate variables use $_ prefix
+# Only $state and $observed are available to resource templates
 #
 
 # ==============================================================================
 # Render Flags - Clean conditionals for resource templates
 # ==============================================================================
-{{ $renderVpc := true }}
+{{ $_renderVpc := true }}
 # Subnets are rendered when we have subnet configs (from cidrmath calculation or manual spec)
-{{ $renderSubnets := or $hasPublicSubnets $hasPrivateSubnets }}
-{{ $renderInternetGateway := $hasPublicSubnets }}
-{{ $renderEgressOnlyIgw := and $hasIpv6 $hasPrivateSubnets }}
-{{ $renderNatGateways := and $natDesired (gt (len $natConfigsForCreation) 0) }}
-{{ $renderRouteTables := or $hasPublicSubnets $hasPrivateSubnets }}
-{{ $renderFlowLogs := and $flowLogsEnabled (ne $flowLogsDestinationArn "") }}
-{{ $renderTgw := $tgwEnabled }}
+{{ $_renderSubnets := or $_hasPublicSubnets $_hasPrivateSubnets }}
+{{ $_renderInternetGateway := $_hasPublicSubnets }}
+{{ $_renderEgressOnlyIgw := and $_hasIpv6 $_hasPrivateSubnets }}
+{{ $_renderNatGateways := and $_natDesired (gt (len $_natConfigsForCreation) 0) }}
+{{ $_renderRouteTables := or $_hasPublicSubnets $_hasPrivateSubnets }}
+{{ $_renderFlowLogs := and $_flowLogsEnabled (ne $_flowLogsDestinationArn "") }}
+{{ $_renderTgw := $_tgwEnabled }}
 
 # ==============================================================================
 # Build $state Namespace
 # ==============================================================================
 {{ $state := dict
   "mode" (dict
-    "ipam" $ipamMode
-    "manual" $manualMode
+    "ipam" $_ipamMode
+    "manual" $_manualMode
   )
 
   "network" (dict
-    "name" $networkName
-    "region" $awsRegion
-    "tags" $awsTags
+    "name" $_networkName
+    "region" $_awsRegion
+    "tags" $_awsTags
   )
 
   "vpc" (dict
-    "cidr" $vpcCidr
-    "cidrSpec" $vpcCidrSpec
-    "enableDnsHostnames" $enableDnsHostnames
-    "enableDnsSupport" $enableDnsSupport
+    "cidr" $_vpcCidr
+    "cidrSpec" $_vpcCidrSpec
+    "externalName" $_vpcExternalName
+    "managementPolicies" $_vpcManagementPolicies
+    "enableDnsHostnames" $_enableDnsHostnames
+    "enableDnsSupport" $_enableDnsSupport
     "ready" $observed.vpc.ready
   )
 
   "ipv6" (dict
-    "enabled" $hasIpv6
+    "enabled" $_hasIpv6
     "ula" (dict
-      "enabled" $ulaEnabled
-      "cidr" $ulaCidr
-      "ipamPoolId" $ulaIpamPoolId
+      "enabled" $_ulaEnabled
+      "cidr" $_ulaCidr
+      "ipamPoolId" $_ulaIpamPoolId
     )
     "amazon" (dict
-      "enabled" $amazonIpv6Enabled
+      "enabled" $_amazonIpv6Enabled
     )
   )
 
   "subnets" (dict
-    "public" $publicSubnets
-    "private" $privateSubnets
-    "hasPublic" $hasPublicSubnets
-    "hasPrivate" $hasPrivateSubnets
+    "public" $_publicSubnets
+    "private" $_privateSubnets
+    "hasPublic" $_hasPublicSubnets
+    "hasPrivate" $_hasPrivateSubnets
   )
 
-  "availabilityZones" $availabilityZones
+  "availabilityZones" $_availabilityZones
+
+  "igw" (dict
+    "externalName" $_igwExternalName
+    "managementPolicies" $_igwManagementPolicies
+  )
+
+  "eigw" (dict
+    "externalName" $_eigwExternalName
+    "managementPolicies" $_eigwManagementPolicies
+  )
 
   "nat" (dict
-    "enabled" $natEnabled
-    "desired" $natDesired
-    "strategy" $natStrategyUpper
-    "configs" $natConfigsForCreation
-    "configsByAz" $natConfigsByAz
-    "singleNatSuffix" $singleNatSuffix
+    "enabled" $_natEnabled
+    "desired" $_natDesired
+    "strategy" $_natStrategyUpper
+    "configs" $_natConfigsForCreation
+    "configsByAz" $_natConfigsByAz
+    "singleNatSuffix" $_singleNatSuffix
+    "externalNames" $_natExternalNames
+    "eipExternalNames" $_eipExternalNames
+    "managementPolicies" $_natManagementPolicies
   )
 
   "flowLogs" (dict
-    "enabled" $flowLogsEnabled
-    "destination" $flowLogsDestination
-    "destinationArn" $flowLogsDestinationArn
-    "iamRoleArn" $flowLogsIamRoleArn
-    "trafficType" $flowLogsTrafficType
+    "enabled" $_flowLogsEnabled
+    "destination" $_flowLogsDestination
+    "destinationArn" $_flowLogsDestinationArn
+    "iamRoleArn" $_flowLogsIamRoleArn
+    "trafficType" $_flowLogsTrafficType
   )
 
   "tgw" (dict
-    "enabled" $tgwEnabled
-    "id" $tgwId
-    "routeTablePropagation" $tgwRouteTablePropagation
+    "enabled" $_tgwEnabled
+    "id" $_tgwId
+    "routeTablePropagation" $_tgwRouteTablePropagation
   )
 
   "routing" (dict
-    "publicRouteTableName" (printf "%s-public" $networkName)
-    "privateRouteTables" $privateRouteTables
-    "privateRtByAz" $privateRtByAz
+    "publicRouteTableName" (printf "%s-public" $_networkName)
+    "privateRouteTables" $_privateRouteTables
+    "privateRtByAz" $_privateRtByAz
+    "externalNames" $_routeTableExternalNames
+    "associationExternalNames" $_routeTableAssociationExternalNames
+    "managementPolicies" $_routeTableManagementPolicies
   )
 
   "providerConfig" (dict
-    "name" $providerConfigName
-    "kind" $providerConfigKind
+    "name" $_providerConfigName
+    "kind" $_providerConfigKind
   )
 
-  "managementPolicies" $managementPolicies
+  "managementPolicies" $_managementPolicies
 
   "render" (dict
-    "vpc" $renderVpc
-    "subnets" $renderSubnets
-    "igw" $renderInternetGateway
-    "eigw" $renderEgressOnlyIgw
-    "nat" $renderNatGateways
-    "routeTables" $renderRouteTables
-    "flowLogs" $renderFlowLogs
-    "tgw" $renderTgw
+    "vpc" $_renderVpc
+    "subnets" $_renderSubnets
+    "igw" $_renderInternetGateway
+    "eigw" $_renderEgressOnlyIgw
+    "nat" $_renderNatGateways
+    "routeTables" $_renderRouteTables
+    "flowLogs" $_renderFlowLogs
+    "tgw" $_renderTgw
   )
 
   "ipam" (dict
     "ipv4" (dict
-      "enabled" $ipv4IpamEnabled
-      "poolId" $ipv4IpamPoolId
-      "vpcNetmask" $ipv4IpamNetmask
+      "enabled" $_ipv4IpamEnabled
+      "poolId" $_ipv4IpamPoolId
+      "vpcNetmask" $_ipv4IpamNetmask
     )
     "ipv6Ula" (dict
-      "enabled" $ipv6UlaIpamEnabled
-      "poolId" $ipv6UlaIpamPoolId
-      "vpcNetmask" $ipv6UlaIpamNetmask
+      "enabled" $_ipv6UlaIpamEnabled
+      "poolId" $_ipv6UlaIpamPoolId
+      "vpcNetmask" $_ipv6UlaIpamNetmask
     )
   )
 
   "subnetLayout" (dict
-    "azs" $layoutAzs
+    "azs" $_layoutAzs
     "public" (dict
-      "enabled" $layoutPublicEnabled
-      "netmask" $layoutPublicNetmask
+      "enabled" $_layoutPublicEnabled
+      "netmask" $_layoutPublicNetmask
     )
     "private" (dict
-      "enabled" $layoutPrivateEnabled
-      "netmask" $layoutPrivateNetmask
+      "enabled" $_layoutPrivateEnabled
+      "netmask" $_layoutPrivateNetmask
     )
+    "managementPolicies" $_layoutManagementPolicies
   )
 }}
 
