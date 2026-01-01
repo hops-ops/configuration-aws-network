@@ -156,14 +156,34 @@
 
         # Calculate IPv6 subnet for public - only Amazon-provided (not ULA)
         # ULA is private addressing and should not be on public subnets
+        # For /56 VPC like fda0:daf7:1:100::/56, subnets modify the 4th group:
+        #   - Subnet 0: fda0:daf7:1:100::/64
+        #   - Subnet 1: fda0:daf7:1:101::/64
         {{ $ipv6AmazonCidr := "" }}
         {{ if and $amazonIpv6Enabled (ne $vpcIpv6Cidr "") }}
-          # IPv6: parse and calculate /64 subnets from /56 VPC
           {{ $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
           {{ $ipv6Base := index $ipv6Parts 0 }}
-          # Append subnet index to IPv6 prefix with colon separator
-          # e.g., 2600:1234:5678::/56 -> 2600:1234:5678:0::/64, 2600:1234:5678:1::/64
-          {{ $ipv6AmazonCidr = printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $azIndex }}
+          {{ $ipv6Groups := splitList ":" (trimSuffix "::" $ipv6Base) }}
+          {{ $numGroups := len $ipv6Groups }}
+          {{ $g1 := index $ipv6Groups 0 }}
+          {{ $g2 := "" }}{{ if ge $numGroups 2 }}{{ $g2 = index $ipv6Groups 1 }}{{ end }}
+          {{ $g3 := "" }}{{ if ge $numGroups 3 }}{{ $g3 = index $ipv6Groups 2 }}{{ end }}
+          {{ $g4 := "" }}{{ if ge $numGroups 4 }}{{ $g4 = index $ipv6Groups 3 }}{{ end }}
+          # Extract base of 4th group (all but last 2 chars) and append subnet index as 2-digit hex
+          {{ $g4Len := len $g4 }}
+          {{ $g4Base := "" }}
+          {{ if gt $g4Len 2 }}
+            {{ $g4Base = substr 0 (sub $g4Len 2 | int) $g4 }}
+          {{ end }}
+          # Use 2-digit hex when g4Base exists (to preserve subnet portion width), single digit otherwise
+          {{ $subnetHex := "" }}
+          {{ if ne $g4Base "" }}
+            {{ $subnetHex = printf "%02x" $azIndex }}
+          {{ else }}
+            {{ $subnetHex = printf "%x" $azIndex }}
+          {{ end }}
+          {{ $newG4 := printf "%s%s" $g4Base $subnetHex }}
+          {{ $ipv6AmazonCidr = printf "%s:%s:%s:%s::/64" $g1 $g2 $g3 $newG4 }}
         {{ end }}
 
         {{ $subnetTags := merge (dict) $awsTags (dict
@@ -202,20 +222,51 @@
         {{ $subnetName := printf "%s-private-%s" $networkName $az }}
 
         # Calculate IPv6 subnets for private - supports both ULA and Amazon-provided
-        # Private subnets start at index 0 (no offset needed since public doesn't use ULA)
+        # For /56 VPC like fda0:daf7:1:100::/56, subnets modify the 4th group:
+        #   - Subnet 0: fda0:daf7:1:100::/64
+        #   - Subnet 1: fda0:daf7:1:101::/64
+        # The last 2 hex digits of the 4th group encode the subnet index
         {{ $ipv6UlaCidr := "" }}
         {{ $ipv6AmazonCidr := "" }}
         {{ if ne $vpcIpv6Cidr "" }}
           {{ $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
           {{ $ipv6Base := index $ipv6Parts 0 }}
+          {{ $ipv6Groups := splitList ":" (trimSuffix "::" $ipv6Base) }}
+          {{ $numGroups := len $ipv6Groups }}
+          {{ $g1 := index $ipv6Groups 0 }}
+          {{ $g2 := "" }}{{ if ge $numGroups 2 }}{{ $g2 = index $ipv6Groups 1 }}{{ end }}
+          {{ $g3 := "" }}{{ if ge $numGroups 3 }}{{ $g3 = index $ipv6Groups 2 }}{{ end }}
+          {{ $g4 := "" }}{{ if ge $numGroups 4 }}{{ $g4 = index $ipv6Groups 3 }}{{ end }}
+          # Extract base of 4th group (all but last 2 chars) and append subnet index as 2-digit hex
+          {{ $g4Len := len $g4 }}
+          {{ $g4Base := "" }}
+          {{ if gt $g4Len 2 }}
+            {{ $g4Base = substr 0 (sub $g4Len 2 | int) $g4 }}
+          {{ end }}
           # ULA IPv6 for private subnets (sequential from 0)
           {{ if or $ulaEnabled $ipv6UlaIpamEnabled }}
-            {{ $ipv6UlaCidr = printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $azIndex }}
+            # Use 2-digit hex when g4Base exists (to preserve subnet portion width), single digit otherwise
+            {{ $subnetHex := "" }}
+            {{ if ne $g4Base "" }}
+              {{ $subnetHex = printf "%02x" $azIndex }}
+            {{ else }}
+              {{ $subnetHex = printf "%x" $azIndex }}
+            {{ end }}
+            {{ $newG4 := printf "%s%s" $g4Base $subnetHex }}
+            {{ $ipv6UlaCidr = printf "%s:%s:%s:%s::/64" $g1 $g2 $g3 $newG4 }}
           {{ end }}
           # Amazon-provided IPv6 for private subnets (offset after public subnets)
           {{ if $amazonIpv6Enabled }}
             {{ $ipv6PrivateIndex := add $azIndex $numAzs }}
-            {{ $ipv6AmazonCidr = printf "%s:%d::/64" (trimSuffix "::" $ipv6Base) $ipv6PrivateIndex }}
+            # Use 2-digit hex when g4Base exists (to preserve subnet portion width), single digit otherwise
+            {{ $subnetHex := "" }}
+            {{ if ne $g4Base "" }}
+              {{ $subnetHex = printf "%02x" $ipv6PrivateIndex }}
+            {{ else }}
+              {{ $subnetHex = printf "%x" $ipv6PrivateIndex }}
+            {{ end }}
+            {{ $newG4 := printf "%s%s" $g4Base $subnetHex }}
+            {{ $ipv6AmazonCidr = printf "%s:%s:%s:%s::/64" $g1 $g2 $g3 $newG4 }}
           {{ end }}
         {{ end }}
 
