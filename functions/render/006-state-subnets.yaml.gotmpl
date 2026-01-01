@@ -173,6 +173,10 @@
           "kubernetes.io/role/elb" "1"
         ) }}
 
+        # Compute final IPv6 values for this subnet
+        {{ $ipv6CidrBlock := $ipv6AmazonCidr }}
+        {{ $assignIpv6 := ne $ipv6CidrBlock "" }}
+
         {{ $config := dict
           "name" $subnetName
           "resourceName" (printf "subnet-public-%s" $az)
@@ -183,8 +187,8 @@
           "mapPublicIpOnLaunch" true
           "tags" $subnetTags
           "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $az)
-          "ipv6UlaCidr" ""
-          "ipv6AmazonCidr" $ipv6AmazonCidr
+          "ipv6CidrBlock" $ipv6CidrBlock
+          "assignIpv6AddressOnCreation" $assignIpv6
         }}
 
         {{ $publicSubnets = append $publicSubnets $config }}
@@ -222,6 +226,10 @@
           "kubernetes.io/role/internal-elb" "1"
         ) }}
 
+        # Compute final IPv6 values for this subnet (ULA preferred over Amazon-provided)
+        {{ $ipv6CidrBlock := $ipv6UlaCidr | default $ipv6AmazonCidr }}
+        {{ $assignIpv6 := ne $ipv6CidrBlock "" }}
+
         {{ $config := dict
           "name" $subnetName
           "resourceName" (printf "subnet-private-%s" $az)
@@ -232,8 +240,8 @@
           "mapPublicIpOnLaunch" false
           "tags" $subnetTags
           "labels" (dict "hops.ops.com.ai/network" $networkName "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $az)
-          "ipv6UlaCidr" $ipv6UlaCidr
-          "ipv6AmazonCidr" $ipv6AmazonCidr
+          "ipv6CidrBlock" $ipv6CidrBlock
+          "assignIpv6AddressOnCreation" $assignIpv6
         }}
 
         {{ $privateSubnets = append $privateSubnets $config }}

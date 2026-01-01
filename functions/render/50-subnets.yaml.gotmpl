@@ -30,13 +30,9 @@ spec:
       name: {{ $state.network.name }}
     mapPublicIpOnLaunch: {{ $subnet.mapPublicIpOnLaunch }}
     cidrBlock: {{ $subnet.cidr }}
-    {{- if $state.ipv6.enabled }}
+    {{- if $subnet.assignIpv6AddressOnCreation }}
     assignIpv6AddressOnCreation: true
-    {{- if $subnet.ipv6UlaCidr }}
-    ipv6CidrBlock: {{ $subnet.ipv6UlaCidr }}
-    {{- else if $subnet.ipv6AmazonCidr }}
-    ipv6CidrBlock: {{ $subnet.ipv6AmazonCidr }}
-    {{- end }}
+    ipv6CidrBlock: {{ $subnet.ipv6CidrBlock }}
     {{- end }}
     tags:
       {{ $subnet.tags | toYaml | nindent 6 }}
@@ -92,13 +88,9 @@ spec:
       name: {{ $state.network.name }}
     mapPublicIpOnLaunch: {{ $subnet.mapPublicIpOnLaunch }}
     cidrBlock: {{ $subnet.cidr }}
-    {{- if $state.ipv6.enabled }}
+    {{- if or $subnet.ipv6UlaCidr $subnet.ipv6AmazonCidr }}
     assignIpv6AddressOnCreation: true
-    {{- if $subnet.ipv6UlaCidr }}
-    ipv6CidrBlock: {{ $subnet.ipv6UlaCidr }}
-    {{- else if $subnet.ipv6AmazonCidr }}
-    ipv6CidrBlock: {{ $subnet.ipv6AmazonCidr }}
-    {{- end }}
+    ipv6CidrBlock: {{ $subnet.ipv6UlaCidr | default $subnet.ipv6AmazonCidr }}
     {{- end }}
     tags:
       {{ $subnet.tags | toYaml | nindent 6 }}
