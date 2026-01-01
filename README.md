@@ -57,37 +57,24 @@ spec:
     ipv4:
       enabled: true
       poolId: ipam-pool-0123456789abcdef0
-      scopeId: ipam-scope-0123456789abcdef0
-      vpc:
-        netmaskLength: 16
-      subnets:
-        availabilityZones: [a, b, c]
-        public:
-          enabled: true
-          netmaskLength: 24
-        private:
-          enabled: true
-          netmaskLength: 20
+      netmaskLength: 16
     ipv6Ula:
       enabled: true
       poolId: ipam-pool-0fedcba9876543210
-      scopeId: ipam-scope-0fedcba9876543210
-      vpc:
-        netmaskLength: 56
-      subnets:
-        availabilityZones: [a, b, c]
-        public:
-          enabled: true
-          netmaskLength: 64
-        private:
-          enabled: true
-          netmaskLength: 64
-  vpc: {}
+      netmaskLength: 56
+  subnetLayout:
+    availabilityZones: [a, b, c]
+    public:
+      enabled: true
+      netmaskLength: 24
+    private:
+      enabled: true
+      netmaskLength: 20
   nat:
     enabled: false
 ```
 
-**Cost: ~$0/mo** | **Created: VPC, 6 subnets, IPAM pools, IGW, Egress-Only IGW, routes**
+**Cost: ~$0/mo** | **Created: VPC, 6 subnets, IGW, Egress-Only IGW, routes**
 
 ### Why No NAT by Default?
 
@@ -370,32 +357,19 @@ spec:
     ipv4:
       enabled: true
       poolId: ipam-pool-enterprise123
-      scopeId: ipam-scope-enterprise456
-      vpc:
-        netmaskLength: 16
-      subnets:
-        availabilityZones: [a, b, c]
-        public:
-          enabled: true
-          netmaskLength: 24
-        private:
-          enabled: true
-          netmaskLength: 18
+      netmaskLength: 16
     ipv6Ula:
       enabled: true
       poolId: ipam-pool-ipv6-enterprise
-      scopeId: ipam-scope-ipv6-enterprise
-      vpc:
-        netmaskLength: 56
-      subnets:
-        availabilityZones: [a, b, c]
-        public:
-          enabled: true
-          netmaskLength: 64
-        private:
-          enabled: true
-          netmaskLength: 64
-  vpc: {}
+      netmaskLength: 56
+  subnetLayout:
+    availabilityZones: [a, b, c]
+    public:
+      enabled: true
+      netmaskLength: 24
+    private:
+      enabled: true
+      netmaskLength: 18
   nat:
     enabled: true
     strategy: HighlyAvailable
@@ -467,14 +441,20 @@ spec:
 |-------|------|-------------|
 | `ipv4.enabled` | boolean | Enable IPv4 CIDR allocation from IPAM |
 | `ipv4.poolId` | string | IPAM pool ID |
-| `ipv4.scopeId` | string | IPAM scope ID |
-| `ipv4.vpc.netmaskLength` | int | VPC netmask (default: 16) |
-| `ipv4.subnets.availabilityZones` | []string | AZs for auto-generated subnets |
-| `ipv4.subnets.public.enabled` | boolean | Create public subnets |
-| `ipv4.subnets.public.netmaskLength` | int | Public subnet netmask |
-| `ipv4.subnets.private.enabled` | boolean | Create private subnets |
-| `ipv4.subnets.private.netmaskLength` | int | Private subnet netmask |
-| `ipv6Ula.*` | | Same structure as ipv4 for IPv6 ULA |
+| `ipv4.netmaskLength` | int | VPC netmask (default: 16) |
+| `ipv6Ula.enabled` | boolean | Enable IPv6 ULA CIDR allocation from IPAM |
+| `ipv6Ula.poolId` | string | IPAM pool ID for IPv6 |
+| `ipv6Ula.netmaskLength` | int | VPC IPv6 netmask (default: 56) |
+
+### spec.subnetLayout
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `availabilityZones` | []string | AZs for subnet creation (default: [a, b, c]) |
+| `public.enabled` | boolean | Create public subnets (default: true) |
+| `public.netmaskLength` | int | Public subnet netmask (default: 24) |
+| `private.enabled` | boolean | Create private subnets (default: true) |
+| `private.netmaskLength` | int | Private subnet netmask (default: 20) |
 
 ### spec.nat
 
@@ -508,23 +488,11 @@ The Network exposes observed state in `status`:
 ```yaml
 status:
   ready: true
-  allocations:  # Only present when using ipam
+  ipam:  # Only present when using IPAM
     ipv4:
-      ready: true
       cidr: "10.100.0.0/16"
-      vpcPoolId: ipam-pool-xxx
-      subnetPoolId: ipam-pool-yyy
-      subnets:
-        public-a: "10.100.0.0/24"
-        private-a: "10.100.16.0/20"
     ipv6Ula:
-      ready: true
       cidr: "fd00:dead:beef::/56"
-      vpcPoolId: ipam-pool-ipv6-xxx
-      subnetPoolId: ipam-pool-ipv6-yyy
-      subnets:
-        public-a: "fd00:dead:beef:0::/64"
-        private-a: "fd00:dead:beef:100::/64"
   network:
     name: my-network
     region: us-east-1
@@ -532,6 +500,7 @@ status:
     cidr:
       ipv4: "10.100.0.0/16"
       ipv6Ula: "fd00:dead:beef::/56"
+      ipv6AmazonProvided: "2600:1f18:abc::/56"  # If using Amazon-provided
     availabilityZones:
       - us-east-1a
       - us-east-1b
@@ -560,13 +529,14 @@ status:
       - name: my-network-nat-a
         id: nat-abc123
         availabilityZone: us-east-1a
+        eipAllocationId: eipalloc-abc123
     internetGateway:
       id: igw-abc123
     egressOnlyInternetGateway:
       id: eigw-abc123
     transitGatewayAttachment:
       id: tgw-attach-abc123
-      ready: true
+      state: available
 ```
 
 ## License
