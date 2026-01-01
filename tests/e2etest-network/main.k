@@ -29,6 +29,8 @@
 
 import base64
 import file
+import datetime
+import math
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
 import models.ai.com.ops.hops.aws.v1alpha1 as hops
 
@@ -77,6 +79,10 @@ _rta_external_names = {}
 # =============================================================================
 _test_network_name = "e2etest-network"
 
+_now = str(int(math.floor(datetime.ticks())))
+
+_ephemeral_test_network_name = _test_network_name + "-" + _now
+
 _items = [
     metav1alpha1.E2ETest{
         metadata.name: ""
@@ -86,7 +92,7 @@ _items = [
             manifests: [
                 hops.Network{
                     metadata: {
-                        name: _test_network_name
+                        name: _ephemeral_test_network_name
                         namespace: "default"
                     }
                     spec: {
