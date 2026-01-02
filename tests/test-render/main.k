@@ -1121,6 +1121,472 @@ _items = [
                 }
             ]
         }
+    },
+
+    # -------------------------------------------------------------------------
+    # Management Policies Inheritance Tests
+    # Verify root managementPolicies propagates to all resources, with overrides
+    # -------------------------------------------------------------------------
+
+    # Test: Root managementPolicies defaults to ["*"] for all resources
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-default-full-control"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-default"
+                spec = {
+                    region = "us-east-1"
+                    vpc = {cidr = "10.0.0.0/16"}
+                    subnetLayout = {
+                        public = {enabled = True, netmaskLength = 24}
+                        private = {enabled = True, netmaskLength = 20}
+                        availabilityZones = ["a"]
+                    }
+                }
+            }
+            # All resources should have ["*"] by default
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-default"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-default-public-a"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-default-private-a"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata.name = "test-mgmt-default"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "RouteTable"
+                    metadata.name = "test-mgmt-default-public"
+                    spec.managementPolicies = ["*"]
+                }
+            ]
+        }
+    },
+
+    # Test: Root managementPolicies=["Observe"] propagates to all resources
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-observe-only-propagates"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-observe"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {cidr = "10.0.0.0/16"}
+                    subnetLayout = {
+                        public = {enabled = True, netmaskLength = 24}
+                        private = {enabled = True, netmaskLength = 20}
+                        availabilityZones = ["a"]
+                    }
+                }
+            }
+            # All resources should inherit ["Observe"]
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-observe"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-observe-public-a"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-observe-private-a"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata.name = "test-mgmt-observe"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "RouteTable"
+                    metadata.name = "test-mgmt-observe-public"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "RouteTable"
+                    metadata.name = "test-mgmt-observe-private-rt-a"
+                    spec.managementPolicies = ["Observe"]
+                }
+            ]
+        }
+    },
+
+    # Test: VPC can override managementPolicies while others inherit from root
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-vpc-override"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-vpc-override"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {
+                        cidr = "10.0.0.0/16"
+                        managementPolicies = ["*"]
+                    }
+                    subnetLayout = {
+                        public = {enabled = True, netmaskLength = 24}
+                        availabilityZones = ["a"]
+                    }
+                }
+            }
+            # VPC gets override, others inherit root
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-vpc-override"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-vpc-override-public-a"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata.name = "test-mgmt-vpc-override"
+                    spec.managementPolicies = ["Observe"]
+                }
+            ]
+        }
+    },
+
+    # Test: subnetLayout.managementPolicies overrides for layout subnets
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-subnet-layout-override"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-layout"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {cidr = "10.0.0.0/16"}
+                    subnetLayout = {
+                        public = {enabled = True, netmaskLength = 24}
+                        private = {enabled = True, netmaskLength = 20}
+                        availabilityZones = ["a"]
+                        managementPolicies = ["*"]
+                    }
+                }
+            }
+            # VPC inherits root, subnets get layout override
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-layout"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-layout-public-a"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-layout-private-a"
+                    spec.managementPolicies = ["*"]
+                }
+            ]
+        }
+    },
+
+    # Test: routeTables.managementPolicies overrides for route tables and routes
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-route-tables-override"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-rt"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {cidr = "10.0.0.0/16"}
+                    subnetLayout = {
+                        public = {enabled = True, netmaskLength = 24}
+                        private = {enabled = True, netmaskLength = 20}
+                        availabilityZones = ["a"]
+                    }
+                    routeTables = {
+                        managementPolicies = ["*"]
+                    }
+                }
+            }
+            # Route tables get override, others inherit root
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-rt"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "test-mgmt-rt-public-a"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "RouteTable"
+                    metadata.name = "test-mgmt-rt-public"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "RouteTable"
+                    metadata.name = "test-mgmt-rt-private-rt-a"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Route"
+                    metadata.name = "test-mgmt-rt-public-default-ipv4"
+                    spec.managementPolicies = ["*"]
+                }
+            ]
+        }
+    },
+
+    # Test: IGW managementPolicies override
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-igw-override"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-igw"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {cidr = "10.0.0.0/16"}
+                    subnetLayout = {
+                        public = {enabled = True, netmaskLength = 24}
+                        availabilityZones = ["a"]
+                    }
+                    internetGateway = {
+                        managementPolicies = ["*"]
+                    }
+                }
+            }
+            # IGW gets override, others inherit root
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-igw"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata.name = "test-mgmt-igw"
+                    spec.managementPolicies = ["*"]
+                }
+            ]
+        }
+    },
+
+    # Test: NAT managementPolicies override (for EIP and NATGateway)
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-nat-override"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-nat"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {cidr = "10.0.0.0/16"}
+                    nat = {
+                        enabled = True
+                        strategy = "SingleAz"
+                        managementPolicies = ["*"]
+                    }
+                    subnets = [
+                        {name = "public-a", availabilityZone = "a", cidr = "10.0.0.0/24", public = True}
+                        {name = "private-a", availabilityZone = "a", cidr = "10.0.10.0/24", public = False}
+                    ]
+                }
+            }
+            # Provide observed VPC and public subnet so NAT can render
+            observedResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata = {
+                        name = "test-mgmt-nat"
+                        annotations = {"crossplane.io/composition-resource-name" = "vpc"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "vpc-test123", cidrBlock = "10.0.0.0/16"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "InternetGateway"
+                    metadata = {
+                        name = "test-mgmt-nat"
+                        annotations = {"crossplane.io/composition-resource-name" = "internet-gateway"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "igw-test123"}
+                    }
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata = {
+                        name = "test-mgmt-nat-public-a"
+                        annotations = {"crossplane.io/composition-resource-name" = "subnet-public-a"}
+                    }
+                    status = {
+                        conditions = [{type = "Ready", status = "True"}, {type = "Synced", status = "True"}]
+                        atProvider = {id = "subnet-publica123", cidrBlock = "10.0.0.0/24", availabilityZone = "us-east-1a"}
+                    }
+                }
+            ]
+            # NAT resources get override, VPC inherits root
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-nat"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "EIP"
+                    metadata.name = "test-mgmt-nat-nat-eip-a"
+                    spec.managementPolicies = ["*"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "NATGateway"
+                    metadata.name = "test-mgmt-nat-nat-a"
+                    spec.managementPolicies = ["*"]
+                }
+            ]
+        }
+    },
+
+    # Test: Manual subnets with individual managementPolicies override
+    metav1alpha1.CompositionTest {
+        metadata.name = "mgmt-policies-manual-subnet-override"
+        spec = {
+            compositionPath = "apis/networks/composition.yaml"
+            xrdPath = "apis/networks/definition.yaml"
+            timeoutSeconds = 60
+            validate = True
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "Network"
+                metadata.name = "test-mgmt-manual"
+                spec = {
+                    region = "us-east-1"
+                    managementPolicies = ["Observe"]
+                    vpc = {cidr = "10.0.0.0/16"}
+                    subnets = [
+                        {name = "public-a", availabilityZone = "a", cidr = "10.0.0.0/24", public = True}
+                        {name = "private-a", availabilityZone = "a", cidr = "10.0.10.0/24", public = False, managementPolicies = ["*"]}
+                    ]
+                }
+            }
+            # public-a inherits root, private-a gets override
+            assertResources = [
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "VPC"
+                    metadata.name = "test-mgmt-manual"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "public-a"
+                    spec.managementPolicies = ["Observe"]
+                }
+                {
+                    apiVersion = "ec2.aws.m.upbound.io/v1beta1"
+                    kind = "Subnet"
+                    metadata.name = "private-a"
+                    spec.managementPolicies = ["*"]
+                }
+            ]
+        }
     }
 ]
 

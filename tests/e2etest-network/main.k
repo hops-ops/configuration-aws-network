@@ -169,17 +169,14 @@ _items = [
                         vpc: {
                             if _vpc_external_name:
                                 externalName: _vpc_external_name
-                            managementPolicies: _orphan
                         }
                         internetGateway: {
                             if _igw_external_name:
                                 externalName: _igw_external_name
-                            managementPolicies: _orphan
                         }
                         egressOnlyInternetGateway: {
                             if _eigw_external_name:
                                 externalName: _eigw_external_name
-                            managementPolicies: _orphan
                         }
                         # Use IPAM to auto-allocate VPC CIDRs
                         ipam: {
@@ -206,14 +203,12 @@ _items = [
                             }
                             if _subnet_external_names:
                                 externalNames: _subnet_external_names
-                            managementPolicies: _orphan
                         }
                         routeTables: {
                             if _route_table_external_names:
                                 externalNames: _route_table_external_names
                             if _rta_external_names:
                                 associationExternalNames: _rta_external_names
-                            managementPolicies: _orphan
                         }
                         # No NAT gateway (costs money)
                         nat: {
