@@ -32,6 +32,7 @@ jobs:
           { "example": "examples/networks/dual-stack-ula.yaml" },
           { "example": "examples/networks/dual-stack-amazon.yaml" },
           { "example": "examples/networks/high-availability.yaml" },
+          { "example": "examples/networks/import-example.yaml" },
           { "example": "examples/networks/with-ipam.yaml", "observed_resources": "examples/test/mocks/observed-resources/with-ipam/steps/1" },
           { "example": "examples/networks/with-ipam.yaml", "observed_resources": "examples/test/mocks/observed-resources/with-ipam/steps/2" },
           { "example": "examples/networks/with-ipam.yaml", "observed_resources": "examples/test/mocks/observed-resources/with-ipam/steps/3" },

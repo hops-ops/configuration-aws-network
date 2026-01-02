@@ -13,10 +13,13 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "internet-gateway" }}
+    {{- if $state.igw.externalName }}
+    crossplane.io/external-name: {{ $state.igw.externalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.igw.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -61,7 +64,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
@@ -108,7 +111,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:

@@ -7,6 +7,8 @@
 
 {{- if $state.render.nat }}
 {{- range $natConfig := $state.nat.configs }}
+{{- $eipExternalName := get $state.nat.eipExternalNames $natConfig.azSuffix | default "" }}
+{{- $natExternalName := get $state.nat.externalNames $natConfig.azSuffix | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: EIP
@@ -14,10 +16,13 @@ metadata:
   name: {{ $natConfig.eipName }}
   annotations:
     {{ setResourceNameAnnotation $natConfig.eipResourceName }}
+    {{- if $eipExternalName }}
+    crossplane.io/external-name: {{ $eipExternalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.nat.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     domain: vpc
@@ -34,10 +39,13 @@ metadata:
   name: {{ $natConfig.name }}
   annotations:
     {{ setResourceNameAnnotation $natConfig.resourceName }}
+    {{- if $natExternalName }}
+    crossplane.io/external-name: {{ $natExternalName | quote }}
+    {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.nat.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     connectivityType: public
@@ -116,7 +124,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
