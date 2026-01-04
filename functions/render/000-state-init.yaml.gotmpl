@@ -1,0 +1,176 @@
+# code: language=yaml
+#
+# Initialize $state namespace with spec.raw and spec.effective
+# This is the first file in the pipeline - initializes $state which subsequent files extend
+#
+
+{{- $xr := getCompositeResource . }}
+{{- $metadata := $xr.metadata | default dict }}
+{{- $spec := $xr.spec | default dict }}
+
+# ==============================================================================
+# Build spec.effective with all defaults applied
+# ==============================================================================
+
+# Core identification
+{{- $name := $metadata.name | default "network" }}
+{{- $region := $spec.region | default "us-east-1" }}
+{{- $managementPolicies := $spec.managementPolicies | default (list "*") }}
+
+# Provider configuration
+{{- $providerConfigRef := dict
+  "name" (($spec.providerConfigRef | default dict).name | default "default")
+  "kind" (($spec.providerConfigRef | default dict).kind | default "ProviderConfig")
+}}
+
+# Tags with defaults
+{{- $defaultTags := dict "hops" "true" (printf "hops.ops.com.ai/network") $name }}
+{{- $tags := merge (dict) $defaultTags ($spec.tags | default dict) }}
+
+# VPC configuration
+{{- $vpcSpec := $spec.vpc | default dict }}
+{{- $vpc := dict
+  "cidr" ($vpcSpec.cidr | default "")
+  "externalName" ($vpcSpec.externalName | default "")
+  "managementPolicies" ($vpcSpec.managementPolicies | default $managementPolicies)
+  "forProvider" (merge (dict "enableDnsHostnames" true "enableDnsSupport" true) ($vpcSpec.forProvider | default dict))
+}}
+
+# IPv6 configuration
+{{- $ipv6Spec := $vpcSpec.ipv6 | default dict }}
+{{- $ulaSpec := $ipv6Spec.ula | default dict }}
+{{- $amazonSpec := $ipv6Spec.amazonProvided | default dict }}
+{{- $ipv6 := dict
+  "ula" (dict
+    "enabled" ($ulaSpec.enabled | default false)
+    "cidr" ($ulaSpec.cidr | default "")
+    "ipamPoolId" ($ulaSpec.ipamPoolId | default "")
+  )
+  "amazonProvided" (dict
+    "enabled" ($amazonSpec.enabled | default false)
+  )
+}}
+
+# IPAM configuration
+{{- $ipamSpec := $spec.ipam | default dict }}
+{{- $ipv4IpamSpec := $ipamSpec.ipv4 | default dict }}
+{{- $ipv6UlaIpamSpec := $ipamSpec.ipv6Ula | default dict }}
+{{- $ipam := dict
+  "ipv4" (dict
+    "enabled" ($ipv4IpamSpec.enabled | default false)
+    "poolId" ($ipv4IpamSpec.poolId | default "")
+    "netmaskLength" ($ipv4IpamSpec.netmaskLength | default 16)
+  )
+  "ipv6Ula" (dict
+    "enabled" ($ipv6UlaIpamSpec.enabled | default false)
+    "poolId" ($ipv6UlaIpamSpec.poolId | default "")
+    "netmaskLength" ($ipv6UlaIpamSpec.netmaskLength | default 56)
+  )
+}}
+
+# Subnet layout configuration
+{{- $layoutSpec := $spec.subnetLayout | default dict }}
+{{- $layoutPublicSpec := $layoutSpec.public | default dict }}
+{{- $layoutPrivateSpec := $layoutSpec.private | default dict }}
+{{- $subnetLayout := dict
+  "availabilityZones" ($layoutSpec.availabilityZones | default (list "a" "b" "c"))
+  "public" (dict
+    "enabled" ($layoutPublicSpec.enabled | default true)
+    "netmaskLength" ($layoutPublicSpec.netmaskLength | default 24)
+  )
+  "private" (dict
+    "enabled" ($layoutPrivateSpec.enabled | default true)
+    "netmaskLength" ($layoutPrivateSpec.netmaskLength | default 20)
+  )
+  "externalNames" ($layoutSpec.externalNames | default dict)
+  "managementPolicies" ($layoutSpec.managementPolicies | default $managementPolicies)
+}}
+
+# Manual subnets list
+{{- $subnets := $spec.subnets | default list }}
+
+# Internet gateway configuration
+{{- $igwSpec := $spec.internetGateway | default dict }}
+{{- $internetGateway := dict
+  "externalName" ($igwSpec.externalName | default "")
+  "managementPolicies" ($igwSpec.managementPolicies | default $managementPolicies)
+}}
+
+# Egress-only internet gateway configuration
+{{- $eigwSpec := $spec.egressOnlyInternetGateway | default dict }}
+{{- $egressOnlyInternetGateway := dict
+  "externalName" ($eigwSpec.externalName | default "")
+  "managementPolicies" ($eigwSpec.managementPolicies | default $managementPolicies)
+}}
+
+# Route tables configuration
+{{- $rtSpec := $spec.routeTables | default dict }}
+{{- $routeTables := dict
+  "externalNames" ($rtSpec.externalNames | default dict)
+  "associationExternalNames" ($rtSpec.associationExternalNames | default dict)
+  "managementPolicies" ($rtSpec.managementPolicies | default $managementPolicies)
+}}
+
+# NAT configuration
+{{- $natSpec := $spec.nat | default dict }}
+{{- $nat := dict
+  "enabled" ($natSpec.enabled | default false)
+  "strategy" ($natSpec.strategy | default "SingleAz")
+  "externalNames" ($natSpec.externalNames | default dict)
+  "eipExternalNames" ($natSpec.eipExternalNames | default dict)
+  "managementPolicies" ($natSpec.managementPolicies | default $managementPolicies)
+}}
+
+# Flow logs configuration
+{{- $flowLogsSpec := $spec.flowLogs | default dict }}
+{{- $flowLogsConfigSpec := $flowLogsSpec.config | default dict }}
+{{- $flowLogs := dict
+  "enabled" ($flowLogsSpec.enabled | default false)
+  "config" (dict
+    "destination" ($flowLogsConfigSpec.destination | default "cloudwatch")
+    "logDestinationArn" ($flowLogsConfigSpec.logDestinationArn | default "")
+    "iamRoleArn" ($flowLogsConfigSpec.iamRoleArn | default "")
+    "trafficType" ($flowLogsConfigSpec.trafficType | default "ALL")
+  )
+}}
+
+# Transit gateway configuration
+{{- $tgwSpec := $spec.transitGateway | default dict }}
+{{- $tgwConfigSpec := $tgwSpec.config | default dict }}
+{{- $transitGateway := dict
+  "enabled" ($tgwSpec.enabled | default false)
+  "config" (dict
+    "tgwId" ($tgwConfigSpec.tgwId | default "")
+    "routeTablePropagation" ($tgwConfigSpec.routeTablePropagation | default true)
+  )
+}}
+
+# ==============================================================================
+# Initialize $state namespace
+# ==============================================================================
+{{- $state := dict
+  "spec" (dict
+    "raw" $spec
+    "effective" (dict
+      "name" $name
+      "region" $region
+      "managementPolicies" $managementPolicies
+      "providerConfigRef" $providerConfigRef
+      "tags" $tags
+      "vpc" $vpc
+      "ipv6" $ipv6
+      "ipam" $ipam
+      "subnetLayout" $subnetLayout
+      "subnets" $subnets
+      "internetGateway" $internetGateway
+      "egressOnlyInternetGateway" $egressOnlyInternetGateway
+      "routeTables" $routeTables
+      "nat" $nat
+      "flowLogs" $flowLogs
+      "transitGateway" $transitGateway
+    )
+  )
+  "observed" (dict)
+  "network" (dict)
+}}
+

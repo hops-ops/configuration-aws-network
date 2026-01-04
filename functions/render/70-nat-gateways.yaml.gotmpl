@@ -2,13 +2,13 @@
 #
 # NAT Gateways (Step 7)
 # Creates EIPs, NAT Gateways, and private subnet routes
-# Depends on: $state, $observed
+# Depends on: $state.network, $state.observed
 #
 
-{{- if $state.render.nat }}
-{{- range $natConfig := $state.nat.configs }}
-{{- $eipExternalName := get $state.nat.eipExternalNames $natConfig.azSuffix | default "" }}
-{{- $natExternalName := get $state.nat.externalNames $natConfig.azSuffix | default "" }}
+{{- if $state.network.nat.render }}
+{{- range $natConfig := $state.network.nat.configs }}
+{{- $eipExternalName := get $state.network.nat.eipExternalNames $natConfig.azSuffix | default "" }}
+{{- $natExternalName := get $state.network.nat.externalNames $natConfig.azSuffix | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: EIP
@@ -22,7 +22,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.nat.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.nat.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     domain: vpc
@@ -30,8 +30,8 @@ spec:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $natConfig.eipName }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: NATGateway
@@ -45,7 +45,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.nat.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.nat.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     connectivityType: public
@@ -57,13 +57,13 @@ spec:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $natConfig.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usages: Protect NAT Gateway dependencies
-{{ $publicSubnetObs := get $observed.subnets $natConfig.publicSubnetResourceName | default (dict) }}
-{{ $natObs := get $observed.nat $natConfig.resourceName | default (dict) }}
-{{ $eipObs := get $observed.eip $natConfig.eipResourceName | default (dict) }}
+{{- $publicSubnetObs := get $state.observed.subnets $natConfig.publicSubnetResourceName | default dict }}
+{{- $natObs := get $state.observed.nat $natConfig.resourceName | default dict }}
+{{- $eipObs := get $state.observed.eip $natConfig.eipResourceName | default dict }}
 
 # Usage: Public subnet protects NAT Gateway
 {{- if and $publicSubnetObs.ready $natObs.ready }}
@@ -111,7 +111,7 @@ spec:
 {{- end }}
 
 # Private IPv4 routes to NAT Gateways (one per private route table)
-{{- range $rt := $state.routing.privateRouteTables }}
+{{- range $rt := $state.network.routeTables.privateRouteTables }}
 {{- $natConfig := $rt.natGateway }}
 {{- if $natConfig }}
 ---
@@ -124,7 +124,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
@@ -133,8 +133,9 @@ spec:
     natGatewayIdRef:
       name: {{ $natConfig.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 {{- end }}
 {{- end }}
 {{- end }}
+

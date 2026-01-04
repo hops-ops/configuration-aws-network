@@ -2,18 +2,18 @@
 #
 # Subnets (Step 5)
 # Creates public and private subnets with Usage protection
-# Depends on: $state, $observed
+# Depends on: $state.network, $state.observed
 #
 
-{{ if $state.render.subnets }}
+{{- if $state.network.subnets.render }}
 
 # ==============================================================================
 # Public Subnets
 # ==============================================================================
-{{- range $subnet := $state.subnets.public }}
+{{- range $subnet := $state.network.subnets.public }}
 {{- if ne $subnet.cidr "" }}
 {{- $subnetExternalName := $subnet.externalName | default "" }}
-{{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.managementPolicies }}
+{{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.network.managementPolicies }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
@@ -42,12 +42,12 @@ spec:
     tags:
       {{ $subnet.tags | toYaml | nindent 6 }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects public subnet
-{{ $subnetObs := get $observed.subnets $subnet.resourceName | default (dict) }}
-{{- if and $observed.vpc.ready $subnetObs.ready }}
+{{- $subnetObs := get $state.observed.subnets $subnet.resourceName | default dict }}
+{{- if and $state.observed.vpc.ready $subnetObs.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -73,10 +73,10 @@ spec:
 # ==============================================================================
 # Private Subnets
 # ==============================================================================
-{{- range $subnet := $state.subnets.private }}
+{{- range $subnet := $state.network.subnets.private }}
 {{- if ne $subnet.cidr "" }}
 {{- $subnetExternalName := $subnet.externalName | default "" }}
-{{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.managementPolicies }}
+{{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.network.managementPolicies }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Subnet
@@ -105,12 +105,12 @@ spec:
     tags:
       {{ $subnet.tags | toYaml | nindent 6 }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects private subnet
-{{ $subnetObs := get $observed.subnets $subnet.resourceName | default (dict) }}
-{{- if and $observed.vpc.ready $subnetObs.ready }}
+{{- $subnetObs := get $state.observed.subnets $subnet.resourceName | default dict }}
+{{- if and $state.observed.vpc.ready $subnetObs.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -133,4 +133,5 @@ spec:
 {{- end }}
 {{- end }}
 
-{{ end }}
+{{- end }}
+

@@ -2,10 +2,10 @@
 #
 # Internet Gateway (Step 6)
 # Creates IGW and default routes for public subnets
-# Depends on: $state, $observed
+# Depends on: $state.network, $state.observed
 #
 
-{{- if $state.render.igw }}
+{{- if $state.network.igw.render }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: InternetGateway
@@ -13,13 +13,13 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "internet-gateway" }}
-    {{- if $state.igw.externalName }}
-    crossplane.io/external-name: {{ $state.igw.externalName | quote }}
+    {{- if $state.network.igw.externalName }}
+    crossplane.io/external-name: {{ $state.network.igw.externalName | quote }}
     {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.igw.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.igw.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -28,11 +28,11 @@ spec:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $state.network.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects Internet Gateway
-{{- if and $observed.vpc.ready $observed.igw.ready }}
+{{- if and $state.observed.vpc.ready $state.observed.igw.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -64,21 +64,21 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
-      name: {{ $state.routing.publicRouteTableName }}
+      name: {{ $state.network.routeTables.publicRouteTableName }}
     destinationCidrBlock: 0.0.0.0/0
     gatewayIdRef:
       name: {{ $state.network.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: IGW protects public IPv4 route
-{{ $routeIpv4Obs := get $observed._readiness "route-public-default-ipv4" | default false }}
-{{- if and $observed.igw.ready $routeIpv4Obs }}
+{{- $routeIpv4Obs := get $state.observed._readiness "route-public-default-ipv4" | default false }}
+{{- if and $state.observed.igw.ready $routeIpv4Obs }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -99,7 +99,7 @@ spec:
       name: {{ $state.network.name }}-public-default-ipv4
 {{- end }}
 
-{{- if $state.ipv6.enabled }}
+{{- if $state.network.ipv6.enabled }}
 # Public IPv6 route to Internet Gateway
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -111,21 +111,21 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
-      name: {{ $state.routing.publicRouteTableName }}
+      name: {{ $state.network.routeTables.publicRouteTableName }}
     destinationIpv6CidrBlock: "::/0"
     gatewayIdRef:
       name: {{ $state.network.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: IGW protects public IPv6 route
-{{ $routeIpv6Obs := get $observed._readiness "route-public-default-ipv6" | default false }}
-{{- if and $observed.igw.ready $routeIpv6Obs }}
+{{- $routeIpv6Obs := get $state.observed._readiness "route-public-default-ipv6" | default false }}
+{{- if and $state.observed.igw.ready $routeIpv6Obs }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -147,3 +147,4 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
+

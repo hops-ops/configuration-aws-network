@@ -1,0 +1,159 @@
+# code: language=yaml
+#
+# Set $state.network routing slices (igw, eigw, nat, routeTables, flowLogs, tgw)
+# Depends on: 007-state-network-subnets.yaml.gotmpl ($state.network.subnets)
+#
+
+{{- $eff := $state.spec.effective }}
+
+# ==============================================================================
+# Internet Gateway
+# ==============================================================================
+{{- $igwRender := $state.network.subnets.hasPublic }}
+{{- $igw := dict
+  "render" $igwRender
+  "externalName" $eff.internetGateway.externalName
+  "managementPolicies" $eff.internetGateway.managementPolicies
+}}
+{{- $state = set $state "network" (merge $state.network (dict "igw" $igw)) }}
+
+# ==============================================================================
+# Egress-Only Internet Gateway (IPv6 only, for private subnets)
+# ==============================================================================
+{{- $eigwRender := and $state.network.ipv6.enabled $state.network.subnets.hasPrivate }}
+{{- $eigw := dict
+  "render" $eigwRender
+  "externalName" $eff.egressOnlyInternetGateway.externalName
+  "managementPolicies" $eff.egressOnlyInternetGateway.managementPolicies
+}}
+{{- $state = set $state "network" (merge $state.network (dict "eigw" $eigw)) }}
+
+# ==============================================================================
+# NAT Gateway Configuration
+# ==============================================================================
+{{- $natStrategyUpper := upper $eff.nat.strategy }}
+{{- $natDesired := and $eff.nat.enabled $state.network.subnets.hasPublic $state.network.subnets.hasPrivate (ne $natStrategyUpper "NONE") }}
+
+{{- $singleNatSuffix := "" }}
+{{- if gt (len $state.network.subnets.availabilityZones) 0 }}
+  {{- $singleNatSuffix = index $state.network.subnets.availabilityZones 0 }}
+{{- end }}
+
+{{- $natConfigsForCreation := list }}
+{{- $natConfigsByAz := dict }}
+
+{{- if $natDesired }}
+  {{- range $subnet := $state.network.subnets.public }}
+    {{- $azSuffix := $subnet.azSuffix }}
+
+    # Determine if this AZ needs a NAT
+    {{- $needsNat := false }}
+    {{- if eq $natStrategyUpper "HIGHLYAVAILABLE" }}
+      {{- $needsNat = true }}
+    {{- else if eq $natStrategyUpper "SINGLEAZ" }}
+      {{- $needsNat = eq $azSuffix $singleNatSuffix }}
+    {{- end }}
+
+    {{- if and $needsNat (not (hasKey $natConfigsByAz $azSuffix)) }}
+      {{- $natName := printf "%s-nat-%s" $state.network.name $azSuffix }}
+      {{- $natConfig := dict
+        "name" $natName
+        "resourceName" (printf "nat-%s" $azSuffix)
+        "eipName" (printf "%s-nat-eip-%s" $state.network.name $azSuffix)
+        "eipResourceName" (printf "eip-%s" $azSuffix)
+        "publicSubnet" $subnet.name
+        "publicSubnetResourceName" $subnet.resourceName
+        "azSuffix" $azSuffix
+      }}
+      {{- $natConfigsForCreation = append $natConfigsForCreation $natConfig }}
+      {{- $_ := set $natConfigsByAz $azSuffix $natConfig }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- $natRender := and $natDesired (gt (len $natConfigsForCreation) 0) }}
+{{- $nat := dict
+  "render" $natRender
+  "enabled" $eff.nat.enabled
+  "desired" $natDesired
+  "strategy" $natStrategyUpper
+  "configs" $natConfigsForCreation
+  "configsByAz" $natConfigsByAz
+  "singleNatSuffix" $singleNatSuffix
+  "externalNames" $eff.nat.externalNames
+  "eipExternalNames" $eff.nat.eipExternalNames
+  "managementPolicies" $eff.nat.managementPolicies
+}}
+{{- $state = set $state "network" (merge $state.network (dict "nat" $nat)) }}
+
+# ==============================================================================
+# Private Route Table Configuration
+# ==============================================================================
+{{- $privateRtByAz := dict }}
+{{- $privateRouteTables := list }}
+
+{{- range $subnet := $state.network.subnets.private }}
+  {{- $azSuffix := $subnet.azSuffix }}
+  {{- if not (hasKey $privateRtByAz $azSuffix) }}
+    {{- $rtName := printf "%s-private-rt-%s" $state.network.name $azSuffix }}
+    {{- $rtConfig := dict
+      "name" $rtName
+      "resourceName" (printf "rt-private-%s" $azSuffix)
+      "azSuffix" $azSuffix
+    }}
+    {{- $privateRouteTables = append $privateRouteTables $rtConfig }}
+    {{- $_ := set $privateRtByAz $azSuffix $rtConfig }}
+  {{- end }}
+{{- end }}
+
+# Map NAT gateways to private route tables
+{{- range $i, $rt := $privateRouteTables }}
+  {{- $azSuffix := $rt.azSuffix }}
+  {{- $targetNatAz := $azSuffix }}
+  {{- if eq $natStrategyUpper "SINGLEAZ" }}
+    {{- $targetNatAz = $singleNatSuffix }}
+  {{- end }}
+  {{- $natConfig := get $natConfigsByAz $targetNatAz }}
+  {{- if $natConfig }}
+    {{- $_ := set $rt "natGateway" $natConfig }}
+  {{- end }}
+{{- end }}
+
+{{- $routeTablesRender := or $state.network.subnets.hasPublic $state.network.subnets.hasPrivate }}
+{{- $routeTables := dict
+  "render" $routeTablesRender
+  "publicRouteTableName" (printf "%s-public" $state.network.name)
+  "privateRouteTables" $privateRouteTables
+  "privateRtByAz" $privateRtByAz
+  "externalNames" $eff.routeTables.externalNames
+  "associationExternalNames" $eff.routeTables.associationExternalNames
+  "managementPolicies" $eff.routeTables.managementPolicies
+}}
+{{- $state = set $state "network" (merge $state.network (dict "routeTables" $routeTables)) }}
+
+# ==============================================================================
+# Flow Logs Configuration
+# ==============================================================================
+{{- $flowLogsRender := and $eff.flowLogs.enabled (ne $eff.flowLogs.config.logDestinationArn "") }}
+{{- $flowLogs := dict
+  "render" $flowLogsRender
+  "enabled" $eff.flowLogs.enabled
+  "destination" $eff.flowLogs.config.destination
+  "destinationArn" $eff.flowLogs.config.logDestinationArn
+  "iamRoleArn" $eff.flowLogs.config.iamRoleArn
+  "trafficType" $eff.flowLogs.config.trafficType
+}}
+{{- $state = set $state "network" (merge $state.network (dict "flowLogs" $flowLogs)) }}
+
+# ==============================================================================
+# Transit Gateway Configuration
+# ==============================================================================
+{{- $tgwRender := $eff.transitGateway.enabled }}
+{{- $tgw := dict
+  "render" $tgwRender
+  "enabled" $eff.transitGateway.enabled
+  "id" $eff.transitGateway.config.tgwId
+  "routeTablePropagation" $eff.transitGateway.config.routeTablePropagation
+}}
+{{- $state = set $state "network" (merge $state.network (dict "tgw" $tgw)) }}
+

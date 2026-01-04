@@ -1,0 +1,41 @@
+# code: language=yaml
+#
+# Set $state.network.vpc slice with render flag
+# Depends on: 005-state-network.yaml.gotmpl ($state.network, $state.spec.effective, $state.observed)
+#
+
+{{- $eff := $state.spec.effective }}
+
+# ==============================================================================
+# VPC CIDR - Abstracted Source
+# The key insight: downstream templates don't care where the CIDR comes from
+# ==============================================================================
+{{- $vpcCidr := "" }}
+{{- if $state.network.mode.manual }}
+  {{- $vpcCidr = $eff.vpc.cidr }}
+{{- else }}
+  # In IPAM mode, use observed CIDR (may be empty until VPC is created)
+  {{- $vpcCidr = $state.observed.vpc.cidr }}
+{{- end }}
+
+# IPv6 VPC CIDR (from observed, regardless of source)
+{{- $vpcIpv6Cidr := $state.observed.vpc.ipv6Cidr }}
+
+# VPC always renders
+{{- $render := true }}
+
+# ==============================================================================
+# Set $state.network.vpc slice
+# ==============================================================================
+{{- $vpc := dict
+  "render" $render
+  "ready" $state.observed.vpc.ready
+  "cidr" $vpcCidr
+  "cidrSpec" $eff.vpc.cidr
+  "ipv6Cidr" $vpcIpv6Cidr
+  "externalName" $eff.vpc.externalName
+  "managementPolicies" $eff.vpc.managementPolicies
+  "forProvider" $eff.vpc.forProvider
+}}
+{{- $state = set $state "network" (merge $state.network (dict "vpc" $vpc)) }}
+

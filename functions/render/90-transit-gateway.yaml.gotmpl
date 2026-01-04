@@ -2,10 +2,10 @@
 #
 # Transit Gateway (Step 9)
 # Attaches the VPC to an existing Transit Gateway
-# Depends on: $state, $observed
+# Depends on: $state.network, $state.observed
 #
 
-{{- if and $state.render.tgw $state.tgw.id $observed.vpc.ready }}
+{{- if and $state.network.tgw.render $state.network.tgw.id $state.observed.vpc.ready }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: TransitGatewayVPCAttachment
@@ -16,25 +16,25 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
-    transitGatewayId: {{ $state.tgw.id }}
+    transitGatewayId: {{ $state.network.tgw.id }}
     vpcIdRef:
       name: {{ $state.network.name }}
     subnetIdRefs:
-    {{- range $subnet := $state.subnets.private }}
+    {{- range $subnet := $state.network.subnets.private }}
       - name: {{ $subnet.name }}
     {{- end }}
     tags:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $state.network.name }}-tgw-attachment
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects Transit Gateway attachment
-{{- if $observed.tgw.ready }}
+{{- if $state.observed.tgw.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -55,3 +55,4 @@ spec:
       name: {{ $state.network.name }}-tgw-attachment
 {{- end }}
 {{- end }}
+

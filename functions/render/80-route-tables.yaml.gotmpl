@@ -2,21 +2,21 @@
 #
 # Route Tables (Step 8)
 # Creates public and private route tables with subnet associations
-# Depends on: $state, $observed
+# Depends on: $state.network, $state.observed
 #
 
-{{ if $state.render.routeTables }}
+{{- if $state.network.routeTables.render }}
 
 # ==============================================================================
 # Public Route Table (shared across all public subnets)
 # ==============================================================================
-{{- if $state.subnets.hasPublic }}
-{{- $publicRtExternalName := get $state.routing.externalNames "public" | default "" }}
+{{- if $state.network.subnets.hasPublic }}
+{{- $publicRtExternalName := get $state.network.routeTables.externalNames "public" | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
 metadata:
-  name: {{ $state.routing.publicRouteTableName }}
+  name: {{ $state.network.routeTables.publicRouteTableName }}
   annotations:
     {{ setResourceNameAnnotation "rt-public" }}
     {{- if $publicRtExternalName }}
@@ -26,20 +26,20 @@ metadata:
     hops.ops.com.ai/network: {{ $state.network.name }}
     hops.ops.com.ai/tier: public
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
       name: {{ $state.network.name }}
     tags:
       {{ $state.network.tags | toYaml | nindent 6 }}
-      Name: {{ $state.routing.publicRouteTableName }}
+      Name: {{ $state.network.routeTables.publicRouteTableName }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects public route table
-{{- if and $observed.vpc.ready $observed.rt.public.ready }}
+{{- if and $state.observed.vpc.ready $state.observed.rt.public.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -57,13 +57,13 @@ spec:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: RouteTable
     resourceRef:
-      name: {{ $state.routing.publicRouteTableName }}
+      name: {{ $state.network.routeTables.publicRouteTableName }}
 {{- end }}
 
 # Public subnet associations
-{{- range $subnet := $state.subnets.public }}
+{{- range $subnet := $state.network.subnets.public }}
 {{- $rtaKey := printf "public-%s" $subnet.azSuffix }}
-{{- $rtaExternalName := get $state.routing.associationExternalNames $rtaKey | default "" }}
+{{- $rtaExternalName := get $state.network.routeTables.associationExternalNames $rtaKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
@@ -77,26 +77,26 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
-      name: {{ $state.routing.publicRouteTableName }}
+      name: {{ $state.network.routeTables.publicRouteTableName }}
     subnetIdRef:
       name: {{ $subnet.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 {{- end }}
 {{- end }}
 
 # ==============================================================================
 # Private Route Tables (one per AZ for NAT routing)
 # ==============================================================================
-{{- range $rt := $state.routing.privateRouteTables }}
-{{ $rtObs := get $observed.rt.private $rt.resourceName | default (dict) }}
+{{- range $rt := $state.network.routeTables.privateRouteTables }}
+{{- $rtObs := get $state.observed.rt.private $rt.resourceName | default dict }}
 {{- $privateRtKey := printf "private-%s" $rt.azSuffix }}
-{{- $privateRtExternalName := get $state.routing.externalNames $privateRtKey | default "" }}
+{{- $privateRtExternalName := get $state.network.routeTables.externalNames $privateRtKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
@@ -112,7 +112,7 @@ metadata:
     hops.ops.com.ai/tier: private
     hops.ops.com.ai/az: {{ $rt.azSuffix }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -121,11 +121,11 @@ spec:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $rt.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects private route table
-{{- if and $observed.vpc.ready $rtObs.ready }}
+{{- if and $state.observed.vpc.ready $rtObs.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -148,11 +148,11 @@ spec:
 {{- end }}
 
 # Private subnet associations (associate each private subnet with its AZ's route table)
-{{- range $subnet := $state.subnets.private }}
-{{- $rt := get $state.routing.privateRtByAz $subnet.azSuffix }}
+{{- range $subnet := $state.network.subnets.private }}
+{{- $rt := get $state.network.routeTables.privateRtByAz $subnet.azSuffix }}
 {{- if $rt }}
 {{- $rtaKey := printf "private-%s" $subnet.azSuffix }}
-{{- $rtaExternalName := get $state.routing.associationExternalNames $rtaKey | default "" }}
+{{- $rtaExternalName := get $state.network.routeTables.associationExternalNames $rtaKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
@@ -166,7 +166,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
@@ -174,9 +174,10 @@ spec:
     subnetIdRef:
       name: {{ $subnet.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 {{- end }}
 {{- end }}
 
-{{ end }}
+{{- end }}
+

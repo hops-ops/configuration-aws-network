@@ -1,0 +1,76 @@
+# code: language=yaml
+#
+# Set $state.observed slices for gateways (IGW, EIGW, NAT, EIP)
+# Depends on: 001-state-observed-vpc.yaml.gotmpl ($state.observed._raw, $state.observed._readiness)
+#
+
+{{- $raw := $state.observed._raw }}
+{{- $readiness := $state.observed._readiness }}
+
+# ==============================================================================
+# Internet Gateway Observations
+# ==============================================================================
+{{- $igwEntry := get $raw "internet-gateway" | default dict }}
+{{- $igwResource := $igwEntry.resource | default dict }}
+{{- $igwStatus := $igwResource.status | default dict }}
+{{- $igwAtProvider := $igwStatus.atProvider | default dict }}
+
+{{- $state = set $state "observed" (merge $state.observed (dict "igw" (dict
+  "ready" (get $readiness "internet-gateway" | default false)
+  "id" ($igwAtProvider.id | default "")
+))) }}
+
+# ==============================================================================
+# Egress-Only Internet Gateway Observations
+# ==============================================================================
+{{- $eigwEntry := get $raw "egress-only-igw" | default dict }}
+{{- $eigwResource := $eigwEntry.resource | default dict }}
+{{- $eigwStatus := $eigwResource.status | default dict }}
+{{- $eigwAtProvider := $eigwStatus.atProvider | default dict }}
+
+{{- $state = set $state "observed" (merge $state.observed (dict "eigw" (dict
+  "ready" (get $readiness "egress-only-igw" | default false)
+  "id" ($eigwAtProvider.id | default "")
+))) }}
+
+# ==============================================================================
+# NAT Gateway Observations
+# Build a map of NAT gateway observations by scanning for nat-* resources
+# ==============================================================================
+{{- $natGateways := dict }}
+
+{{- range $name, $entry := $raw }}
+  {{- if hasPrefix "nat-" $name }}
+    {{- $natResource := $entry.resource | default dict }}
+    {{- $natStatus := $natResource.status | default dict }}
+    {{- $natAtProvider := $natStatus.atProvider | default dict }}
+    {{- $natGateways = merge $natGateways (dict $name (dict
+      "ready" (get $readiness $name | default false)
+      "id" ($natAtProvider.id | default "")
+    )) }}
+  {{- end }}
+{{- end }}
+
+{{- $state = set $state "observed" (merge $state.observed (dict "nat" $natGateways)) }}
+
+# ==============================================================================
+# EIP Observations
+# Build a map of EIP observations by scanning for eip-* resources
+# ==============================================================================
+{{- $eips := dict }}
+
+{{- range $name, $entry := $raw }}
+  {{- if hasPrefix "eip-" $name }}
+    {{- $eipResource := $entry.resource | default dict }}
+    {{- $eipStatus := $eipResource.status | default dict }}
+    {{- $eipAtProvider := $eipStatus.atProvider | default dict }}
+    {{- $eips = merge $eips (dict $name (dict
+      "ready" (get $readiness $name | default false)
+      "id" ($eipAtProvider.id | default "")
+      "publicIp" ($eipAtProvider.publicIp | default "")
+    )) }}
+  {{- end }}
+{{- end }}
+
+{{- $state = set $state "observed" (merge $state.observed (dict "eip" $eips)) }}
+

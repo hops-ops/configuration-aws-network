@@ -2,10 +2,10 @@
 #
 # Egress-Only Internet Gateway (Step 6)
 # Creates EIGW for private IPv6 outbound traffic
-# Depends on: $state, $observed
+# Depends on: $state.network, $state.observed
 #
 
-{{- if $state.render.eigw }}
+{{- if $state.network.eigw.render }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: EgressOnlyInternetGateway
@@ -13,13 +13,13 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "egress-only-igw" }}
-    {{- if $state.eigw.externalName }}
-    crossplane.io/external-name: {{ $state.eigw.externalName | quote }}
+    {{- if $state.network.eigw.externalName }}
+    crossplane.io/external-name: {{ $state.network.eigw.externalName | quote }}
     {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.eigw.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.eigw.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     vpcIdRef:
@@ -28,11 +28,11 @@ spec:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $state.network.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 
 # Usage: VPC protects Egress-Only IGW
-{{- if and $observed.vpc.ready $observed.eigw.ready }}
+{{- if and $state.observed.vpc.ready $state.observed.eigw.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -54,7 +54,7 @@ spec:
 {{- end }}
 
 # Private IPv6 routes to Egress-Only IGW (one per private route table)
-{{- range $rt := $state.routing.privateRouteTables }}
+{{- range $rt := $state.network.routeTables.privateRouteTables }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: Route
@@ -65,7 +65,7 @@ metadata:
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.routing.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
     routeTableIdRef:
@@ -74,7 +74,8 @@ spec:
     egressOnlyGatewayIdRef:
       name: {{ $state.network.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
 {{- end }}
 {{- end }}
+

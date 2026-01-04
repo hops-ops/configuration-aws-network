@@ -1,0 +1,62 @@
+# code: language=yaml
+#
+# Set $state.observed slices for routing (route tables, TGW)
+# Depends on: 001-state-observed-vpc.yaml.gotmpl ($state.observed._raw, $state.observed._readiness)
+#
+
+{{- $raw := $state.observed._raw }}
+{{- $readiness := $state.observed._readiness }}
+
+# ==============================================================================
+# Public Route Table Observations
+# ==============================================================================
+{{- $publicRtEntry := get $raw "rt-public" | default dict }}
+{{- $publicRtResource := $publicRtEntry.resource | default dict }}
+{{- $publicRtStatus := $publicRtResource.status | default dict }}
+{{- $publicRtAtProvider := $publicRtStatus.atProvider | default dict }}
+
+{{- $publicRouteTable := dict
+  "ready" (get $readiness "rt-public" | default false)
+  "id" ($publicRtAtProvider.id | default "")
+}}
+
+# ==============================================================================
+# Private Route Table Observations
+# Build a map of private route table observations by scanning for rt-private-* resources
+# ==============================================================================
+{{- $privateRouteTables := dict }}
+
+{{- range $name, $entry := $raw }}
+  {{- if hasPrefix "rt-private-" $name }}
+    {{- $rtResource := $entry.resource | default dict }}
+    {{- $rtStatus := $rtResource.status | default dict }}
+    {{- $rtAtProvider := $rtStatus.atProvider | default dict }}
+    {{- $privateRouteTables = merge $privateRouteTables (dict $name (dict
+      "ready" (get $readiness $name | default false)
+      "id" ($rtAtProvider.id | default "")
+    )) }}
+  {{- end }}
+{{- end }}
+
+{{- $state = set $state "observed" (merge $state.observed (dict "rt" (dict
+  "public" $publicRouteTable
+  "private" $privateRouteTables
+))) }}
+
+# ==============================================================================
+# Transit Gateway Attachment Observations
+# Note: TransitGatewayVPCAttachment atProvider has: id, transitGatewayId, vpcId, subnetIds, arn, vpcOwnerId
+# There is no 'state' field - use readiness condition instead
+# ==============================================================================
+{{- $tgwEntry := get $raw "tgw-attachment" | default dict }}
+{{- $tgwResource := $tgwEntry.resource | default dict }}
+{{- $tgwStatus := $tgwResource.status | default dict }}
+{{- $tgwAtProvider := $tgwStatus.atProvider | default dict }}
+
+{{- $state = set $state "observed" (merge $state.observed (dict "tgw" (dict
+  "ready" (get $readiness "tgw-attachment" | default false)
+  "attachmentId" ($tgwAtProvider.id | default "")
+  "transitGatewayId" ($tgwAtProvider.transitGatewayId | default "")
+  "vpcId" ($tgwAtProvider.vpcId | default "")
+))) }}
+

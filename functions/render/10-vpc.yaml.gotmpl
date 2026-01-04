@@ -2,10 +2,10 @@
 #
 # VPC Resource (Step 1)
 # Creates VPC with IPv4 CIDR (explicit or from IPAM) and optional IPv6
-# Depends on: $state
+# Depends on: $state.network
 #
 
-{{ if $state.render.vpc }}
+{{- if $state.network.vpc.render }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: VPC
@@ -13,43 +13,43 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "vpc" }}
-    {{- if $state.vpc.externalName }}
-    crossplane.io/external-name: {{ $state.vpc.externalName | quote }}
+    {{- if $state.network.vpc.externalName }}
+    crossplane.io/external-name: {{ $state.network.vpc.externalName | quote }}
     {{- end }}
   labels:
     hops.ops.com.ai/network: {{ $state.network.name }}
 spec:
-  managementPolicies: {{ $state.vpc.managementPolicies | toJson }}
+  managementPolicies: {{ $state.network.vpc.managementPolicies | toJson }}
   forProvider:
     region: {{ $state.network.region }}
-    enableDnsHostnames: {{ $state.vpc.enableDnsHostnames }}
-    enableDnsSupport: {{ $state.vpc.enableDnsSupport }}
-    {{- if $state.ipam.ipv4.enabled }}
+    enableDnsHostnames: {{ $state.network.vpc.forProvider.enableDnsHostnames }}
+    enableDnsSupport: {{ $state.network.vpc.forProvider.enableDnsSupport }}
+    {{- if $state.network.ipam.ipv4.enabled }}
     # Allocate IPv4 CIDR from IPAM pool
-    ipv4IpamPoolId: {{ $state.ipam.ipv4.poolId }}
-    ipv4NetmaskLength: {{ $state.ipam.ipv4.vpcNetmask }}
+    ipv4IpamPoolId: {{ $state.network.ipam.ipv4.poolId }}
+    ipv4NetmaskLength: {{ $state.network.ipam.ipv4.netmaskLength }}
     {{- else }}
     # Use explicit CIDR
-    cidrBlock: {{ $state.vpc.cidr }}
+    cidrBlock: {{ $state.network.vpc.cidr }}
     {{- end }}
-    {{- if $state.ipv6.amazon.enabled }}
+    {{- if $state.network.ipv6.amazon.enabled }}
     assignGeneratedIpv6CidrBlock: true
     {{- end }}
-    {{- if $state.ipam.ipv6Ula.enabled }}
+    {{- if $state.network.ipam.ipv6Ula.enabled }}
     # Allocate IPv6 ULA CIDR from IPAM pool
-    ipv6IpamPoolId: {{ $state.ipam.ipv6Ula.poolId }}
-    ipv6NetmaskLength: {{ $state.ipam.ipv6Ula.vpcNetmask }}
-    {{- else if and $state.ipv6.ula.enabled $state.ipv6.ula.ipamPoolId }}
+    ipv6IpamPoolId: {{ $state.network.ipam.ipv6Ula.poolId }}
+    ipv6NetmaskLength: {{ $state.network.ipam.ipv6Ula.netmaskLength }}
+    {{- else if and $state.network.ipv6.ula.enabled $state.network.ipv6.ula.ipamPoolId }}
     # Use explicit ULA IPAM pool reference
-    ipv6IpamPoolId: {{ $state.ipv6.ula.ipamPoolId }}
-    {{- if $state.ipv6.ula.cidr }}
-    ipv6CidrBlock: {{ $state.ipv6.ula.cidr }}
+    ipv6IpamPoolId: {{ $state.network.ipv6.ula.ipamPoolId }}
+    {{- if $state.network.ipv6.ula.cidr }}
+    ipv6CidrBlock: {{ $state.network.ipv6.ula.cidr }}
     {{- end }}
     {{- end }}
     tags:
       {{ $state.network.tags | toYaml | nindent 6 }}
       Name: {{ $state.network.name }}
   providerConfigRef:
-    name: {{ $state.providerConfig.name }}
-    kind: {{ $state.providerConfig.kind }}
-{{ end }}
+    name: {{ $state.network.providerConfig.name }}
+    kind: {{ $state.network.providerConfig.kind }}
+{{- end }}

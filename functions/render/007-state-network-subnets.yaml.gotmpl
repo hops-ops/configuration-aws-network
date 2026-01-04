@@ -1,0 +1,300 @@
+# code: language=yaml
+#
+# Set $state.network.subnets slice with render flag
+# Mode detection, VPC CIDR abstraction, and subnet list building with cidrmath
+# Depends on: 006-state-network-vpc.yaml.gotmpl ($state.network.vpc, $state.spec.effective)
+#
+
+{{- $eff := $state.spec.effective }}
+
+# ==============================================================================
+# Build Subnet Lists
+# ==============================================================================
+{{- $publicSubnets := list }}
+{{- $privateSubnets := list }}
+{{- $availabilityZones := list }}
+
+# ------------------------------------------------------------------------------
+# Manual Mode with explicit subnets: Build from spec.subnets[]
+# ------------------------------------------------------------------------------
+{{- if and $state.network.mode.manual (not $state.network.mode.layout) }}
+  {{- $azSet := dict }}
+
+  {{- range $subnet := $eff.subnets }}
+    {{- $subnetName := $subnet.name | default "" }}
+    {{- $subnetExternalName := $subnet.externalName | default "" }}
+    {{- $subnetManagementPolicies := $subnet.managementPolicies | default $eff.managementPolicies }}
+    {{- $subnetCidr := $subnet.cidr | default "" }}
+    {{- $subnetAz := $subnet.availabilityZone | default "" }}
+    {{- $isPublic := $subnet.public | default false }}
+    {{- $subnetIpv6 := $subnet.ipv6 | default dict }}
+    {{- $subnetUlaCidr := $subnetIpv6.ulaCidr | default "" }}
+    {{- $subnetAmazonCidr := $subnetIpv6.amazonProvidedCidr | default "" }}
+
+    # Normalize AZ to suffix only
+    {{- $azSuffix := $subnetAz }}
+    {{- if hasPrefix $state.network.region $subnetAz }}
+      {{- $azSuffix = trimPrefix $state.network.region $subnetAz }}
+    {{- end }}
+    {{- $fullAz := printf "%s%s" $state.network.region $azSuffix }}
+
+    # Track unique AZs
+    {{- if not (hasKey $azSet $azSuffix) }}
+      {{- $_ := set $azSet $azSuffix true }}
+      {{- $availabilityZones = append $availabilityZones $azSuffix }}
+    {{- end }}
+
+    # Build tags
+    {{- $tier := "private" }}
+    {{- $mapPublicIp := false }}
+    {{- $k8sRoleTag := "kubernetes.io/role/internal-elb" }}
+    {{- if $isPublic }}
+      {{- $tier = "public" }}
+      {{- $mapPublicIp = true }}
+      {{- $k8sRoleTag = "kubernetes.io/role/elb" }}
+    {{- end }}
+
+    {{- $subnetTags := merge (dict) $state.network.tags (dict
+      "Name" $subnetName
+      "hops.ops.com.ai/tier" $tier
+      "hops.ops.com.ai/az" $azSuffix
+      $k8sRoleTag "1"
+    ) }}
+
+    {{- $config := dict
+      "name" $subnetName
+      "externalName" $subnetExternalName
+      "managementPolicies" $subnetManagementPolicies
+      "resourceName" (printf "subnet-%s" $subnetName)
+      "cidr" $subnetCidr
+      "az" $fullAz
+      "azSuffix" $azSuffix
+      "public" $isPublic
+      "mapPublicIpOnLaunch" $mapPublicIp
+      "tags" $subnetTags
+      "labels" (dict "hops.ops.com.ai/network" $state.network.name "hops.ops.com.ai/tier" $tier "hops.ops.com.ai/az" $azSuffix)
+      "ipv6UlaCidr" $subnetUlaCidr
+      "ipv6AmazonCidr" $subnetAmazonCidr
+    }}
+
+    {{- if $isPublic }}
+      {{- $publicSubnets = append $publicSubnets $config }}
+    {{- else }}
+      {{- $privateSubnets = append $privateSubnets $config }}
+    {{- end }}
+  {{- end }}
+
+  {{- $availabilityZones = $availabilityZones | sortAlpha }}
+{{- end }}
+
+# ------------------------------------------------------------------------------
+# Layout Mode: Calculate subnet CIDRs from VPC CIDR
+# Works with both IPAM and manual VPC CIDR
+# ------------------------------------------------------------------------------
+{{- if $state.network.mode.layout }}
+  {{- $availabilityZones = $eff.subnetLayout.availabilityZones | sortAlpha }}
+  {{- $numAzs := len $availabilityZones }}
+  {{- $vpcCidr := $state.network.vpc.cidr }}
+  {{- $vpcIpv6Cidr := $state.network.vpc.ipv6Cidr }}
+
+  # Only calculate subnets if we have a VPC CIDR
+  {{- if ne $vpcCidr "" }}
+    # Parse VPC CIDR: "10.0.0.0/16" -> octets [10, 0, 0, 0] and prefix 16
+    {{- $vpcParts := splitList "/" $vpcCidr }}
+    {{- $vpcIp := index $vpcParts 0 }}
+    {{- $vpcPrefix := 16 }}
+    {{- if gt (len $vpcParts) 1 }}
+      {{- $vpcPrefix = index $vpcParts 1 | int }}
+    {{- end }}
+
+    {{- $octets := splitList "." $vpcIp }}
+    {{- $octet1 := index $octets 0 }}
+    {{- $octet2 := index $octets 1 }}
+    {{- $layoutPublicNetmask := $eff.subnetLayout.public.netmaskLength }}
+    {{- $layoutPrivateNetmask := $eff.subnetLayout.private.netmaskLength }}
+
+    # For /16 VPC with /24 public and /20 private:
+    # - Public /24: {o1}.{o2}.{index}.0/24 (256 IPs each)
+    # - Private /20: {o1}.{o2}.{16 + index*16}.0/20 (4096 IPs each, starts at .16.0)
+    #
+    # Layout: |--public /24s (0-15)--|--private /20s (16+)--|
+
+    {{- $azIndex := 0 }}
+    {{- range $az := $availabilityZones }}
+      {{- $fullAz := printf "%s%s" $state.network.region $az }}
+
+      # Public subnet - /24 starting from .0.0
+      {{- if $eff.subnetLayout.public.enabled }}
+        {{- $publicThirdOctet := $azIndex }}
+        {{- $publicCidr := printf "%s.%s.%d.0/%d" $octet1 $octet2 $publicThirdOctet $layoutPublicNetmask }}
+        {{- $subnetName := printf "%s-public-%s" $state.network.name $az }}
+
+        # Calculate IPv6 subnet for public - only Amazon-provided (not ULA)
+        {{- $ipv6AmazonCidr := "" }}
+        {{- if and $state.network.ipv6.amazon.enabled (ne $vpcIpv6Cidr "") }}
+          {{- $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
+          {{- $ipv6Base := index $ipv6Parts 0 }}
+          {{- $ipv6Groups := splitList ":" (trimSuffix "::" $ipv6Base) }}
+          {{- $numGroups := len $ipv6Groups }}
+          {{- $g1 := index $ipv6Groups 0 }}
+          {{- $g2 := "" }}{{- if ge $numGroups 2 }}{{- $g2 = index $ipv6Groups 1 }}{{- end }}
+          {{- $g3 := "" }}{{- if ge $numGroups 3 }}{{- $g3 = index $ipv6Groups 2 }}{{- end }}
+          {{- $g4 := "" }}{{- if ge $numGroups 4 }}{{- $g4 = index $ipv6Groups 3 }}{{- end }}
+          {{- $g4Len := len $g4 }}
+          {{- $g4Base := "" }}
+          {{- if gt $g4Len 2 }}
+            {{- $g4Base = substr 0 (sub $g4Len 2 | int) $g4 }}
+          {{- end }}
+          {{- $subnetHex := "" }}
+          {{- if ne $g4Base "" }}
+            {{- $subnetHex = printf "%02x" $azIndex }}
+          {{- else }}
+            {{- $subnetHex = printf "%x" $azIndex }}
+          {{- end }}
+          {{- $newG4 := printf "%s%s" $g4Base $subnetHex }}
+          {{- $ipv6AmazonCidr = printf "%s:%s:%s:%s::/64" $g1 $g2 $g3 $newG4 }}
+        {{- end }}
+
+        {{- $subnetTags := merge (dict) $state.network.tags (dict
+          "Name" $subnetName
+          "hops.ops.com.ai/tier" "public"
+          "hops.ops.com.ai/az" $az
+          "kubernetes.io/role/elb" "1"
+        ) }}
+
+        {{- $ipv6CidrBlock := $ipv6AmazonCidr }}
+        {{- $assignIpv6 := ne $ipv6CidrBlock "" }}
+
+        # Get externalName from layout map (key = "public-{az}")
+        {{- $subnetKey := printf "public-%s" $az }}
+        {{- $subnetExternalName := get $eff.subnetLayout.externalNames $subnetKey | default "" }}
+
+        {{- $config := dict
+          "name" $subnetName
+          "externalName" $subnetExternalName
+          "managementPolicies" $eff.subnetLayout.managementPolicies
+          "resourceName" (printf "subnet-public-%s" $az)
+          "cidr" $publicCidr
+          "az" $fullAz
+          "azSuffix" $az
+          "public" true
+          "mapPublicIpOnLaunch" true
+          "tags" $subnetTags
+          "labels" (dict "hops.ops.com.ai/network" $state.network.name "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $az)
+          "ipv6CidrBlock" $ipv6CidrBlock
+          "assignIpv6AddressOnCreation" $assignIpv6
+        }}
+
+        {{- $publicSubnets = append $publicSubnets $config }}
+      {{- end }}
+
+      # Private subnet - /20 starting from .16.0 (skips first /20 block used by public /24s)
+      {{- if $eff.subnetLayout.private.enabled }}
+        # Each /20 is 16 third-octets (e.g., .16.0-.31.255, .32.0-.47.255, etc.)
+        {{- $privateThirdOctet := mul (add $azIndex 1) 16 }}
+        {{- $privateCidr := printf "%s.%s.%d.0/%d" $octet1 $octet2 $privateThirdOctet $layoutPrivateNetmask }}
+        {{- $subnetName := printf "%s-private-%s" $state.network.name $az }}
+
+        # Calculate IPv6 subnets for private - supports both ULA and Amazon-provided
+        {{- $ipv6UlaCidr := "" }}
+        {{- $ipv6AmazonCidr := "" }}
+        {{- if ne $vpcIpv6Cidr "" }}
+          {{- $ipv6Parts := splitList "/" $vpcIpv6Cidr }}
+          {{- $ipv6Base := index $ipv6Parts 0 }}
+          {{- $ipv6Groups := splitList ":" (trimSuffix "::" $ipv6Base) }}
+          {{- $numGroups := len $ipv6Groups }}
+          {{- $g1 := index $ipv6Groups 0 }}
+          {{- $g2 := "" }}{{- if ge $numGroups 2 }}{{- $g2 = index $ipv6Groups 1 }}{{- end }}
+          {{- $g3 := "" }}{{- if ge $numGroups 3 }}{{- $g3 = index $ipv6Groups 2 }}{{- end }}
+          {{- $g4 := "" }}{{- if ge $numGroups 4 }}{{- $g4 = index $ipv6Groups 3 }}{{- end }}
+          {{- $g4Len := len $g4 }}
+          {{- $g4Base := "" }}
+          {{- if gt $g4Len 2 }}
+            {{- $g4Base = substr 0 (sub $g4Len 2 | int) $g4 }}
+          {{- end }}
+          # ULA IPv6 for private subnets (sequential from 0)
+          {{- if $state.network.ipv6.ula.enabled }}
+            {{- $subnetHex := "" }}
+            {{- if ne $g4Base "" }}
+              {{- $subnetHex = printf "%02x" $azIndex }}
+            {{- else }}
+              {{- $subnetHex = printf "%x" $azIndex }}
+            {{- end }}
+            {{- $newG4 := printf "%s%s" $g4Base $subnetHex }}
+            {{- $ipv6UlaCidr = printf "%s:%s:%s:%s::/64" $g1 $g2 $g3 $newG4 }}
+          {{- end }}
+          # Amazon-provided IPv6 for private subnets (offset after public subnets)
+          {{- if $state.network.ipv6.amazon.enabled }}
+            {{- $ipv6PrivateIndex := add $azIndex $numAzs }}
+            {{- $subnetHex := "" }}
+            {{- if ne $g4Base "" }}
+              {{- $subnetHex = printf "%02x" $ipv6PrivateIndex }}
+            {{- else }}
+              {{- $subnetHex = printf "%x" $ipv6PrivateIndex }}
+            {{- end }}
+            {{- $newG4 := printf "%s%s" $g4Base $subnetHex }}
+            {{- $ipv6AmazonCidr = printf "%s:%s:%s:%s::/64" $g1 $g2 $g3 $newG4 }}
+          {{- end }}
+        {{- end }}
+
+        {{- $subnetTags := merge (dict) $state.network.tags (dict
+          "Name" $subnetName
+          "hops.ops.com.ai/tier" "private"
+          "hops.ops.com.ai/az" $az
+          "kubernetes.io/role/internal-elb" "1"
+        ) }}
+
+        # Compute final IPv6 values for this subnet (ULA preferred over Amazon-provided)
+        {{- $ipv6CidrBlock := $ipv6UlaCidr | default $ipv6AmazonCidr }}
+        {{- $assignIpv6 := ne $ipv6CidrBlock "" }}
+
+        # Get externalName from layout map (key = "private-{az}")
+        {{- $subnetKey := printf "private-%s" $az }}
+        {{- $subnetExternalName := get $eff.subnetLayout.externalNames $subnetKey | default "" }}
+
+        {{- $config := dict
+          "name" $subnetName
+          "externalName" $subnetExternalName
+          "managementPolicies" $eff.subnetLayout.managementPolicies
+          "resourceName" (printf "subnet-private-%s" $az)
+          "cidr" $privateCidr
+          "az" $fullAz
+          "azSuffix" $az
+          "public" false
+          "mapPublicIpOnLaunch" false
+          "tags" $subnetTags
+          "labels" (dict "hops.ops.com.ai/network" $state.network.name "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $az)
+          "ipv6CidrBlock" $ipv6CidrBlock
+          "assignIpv6AddressOnCreation" $assignIpv6
+        }}
+
+        {{- $privateSubnets = append $privateSubnets $config }}
+      {{- end }}
+
+      {{- $azIndex = add $azIndex 1 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+# ==============================================================================
+# Derived Flags (from subnet lists)
+# ==============================================================================
+{{- $hasPublicSubnets := gt (len $publicSubnets) 0 }}
+{{- $hasPrivateSubnets := gt (len $privateSubnets) 0 }}
+
+# Render subnets when we have subnet configs (from cidrmath calculation or manual spec)
+{{- $render := or $hasPublicSubnets $hasPrivateSubnets }}
+
+# ==============================================================================
+# Set $state.network.subnets slice
+# ==============================================================================
+{{- $subnets := dict
+  "render" $render
+  "public" $publicSubnets
+  "private" $privateSubnets
+  "hasPublic" $hasPublicSubnets
+  "hasPrivate" $hasPrivateSubnets
+  "availabilityZones" $availabilityZones
+}}
+{{- $state = set $state "network" (merge $state.network (dict "subnets" $subnets)) }}
+

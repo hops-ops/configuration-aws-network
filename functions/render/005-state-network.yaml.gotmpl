@@ -1,0 +1,56 @@
+# code: language=yaml
+#
+# Set $state.network core values (name, region, tags, providerConfig)
+# These are shared by all resource templates
+# Depends on: 000-004 ($state.spec.effective, $state.observed)
+#
+
+{{- $eff := $state.spec.effective }}
+
+# ==============================================================================
+# Mode Detection
+# ==============================================================================
+# IPAM mode: VPC CIDR comes from IPAM pool allocation
+{{- $ipamMode := $eff.ipam.ipv4.enabled }}
+# Manual mode: VPC CIDR is explicitly specified
+{{- $manualMode := and (not $ipamMode) (ne $eff.vpc.cidr "") }}
+# Layout mode: using subnetLayout to auto-calculate subnets (works with both IPAM and manual)
+{{- $layoutMode := or $ipamMode (and $manualMode (gt (len $eff.subnetLayout.availabilityZones) 0) (eq (len $eff.subnets) 0)) }}
+
+# IPv6 enabled flag (from ULA, Amazon-provided, or IPAM allocation)
+{{- $ulaEnabled := $eff.ipv6.ula.enabled }}
+{{- if $eff.ipam.ipv6Ula.enabled }}
+  {{- $ulaEnabled = true }}
+{{- end }}
+{{- $hasIpv6 := or $ulaEnabled $eff.ipv6.amazonProvided.enabled }}
+
+# ==============================================================================
+# Set $state.network core slice
+# ==============================================================================
+{{- $network := dict
+  "name" $eff.name
+  "region" $eff.region
+  "providerConfig" $eff.providerConfigRef
+  "managementPolicies" $eff.managementPolicies
+  "tags" $eff.tags
+  "mode" (dict
+    "ipam" $ipamMode
+    "manual" $manualMode
+    "layout" $layoutMode
+  )
+  "ipv6" (dict
+    "enabled" $hasIpv6
+    "ula" (dict
+      "enabled" $ulaEnabled
+      "cidr" $eff.ipv6.ula.cidr
+      "ipamPoolId" $eff.ipv6.ula.ipamPoolId
+    )
+    "amazon" (dict
+      "enabled" $eff.ipv6.amazonProvided.enabled
+    )
+  )
+  "ipam" $eff.ipam
+}}
+
+{{- $state = set $state "network" $network }}
+

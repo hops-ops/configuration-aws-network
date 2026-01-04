@@ -1,0 +1,112 @@
+# code: language=yaml
+#
+# Status Output
+# Projects $state.status into XR status
+# All computation is done in 009-state-status.yaml.gotmpl - this template just outputs
+# Depends on: $state.status
+#
+
+{{- $xr := getCompositeResource . }}
+{{- $s := $state.status }}
+{{- $net := $s.network }}
+---
+apiVersion: {{ $xr.apiVersion }}
+kind: {{ $xr.kind }}
+status:
+  ready: {{ $s.ready }}
+  {{- if $s.ipam }}
+  ipam:
+    {{- if $s.ipam.ipv4 }}
+    ipv4:
+      cidr: {{ $s.ipam.ipv4.cidr }}
+    {{- end }}
+    {{- if $s.ipam.ipv6Ula }}
+    ipv6Ula:
+      cidr: {{ $s.ipam.ipv6Ula.cidr }}
+    {{- end }}
+  {{- end }}
+  network:
+    name: {{ $net.name }}
+    region: {{ $net.region }}
+    vpcId: {{ $net.vpcId }}
+    cidr:
+      ipv4: {{ $net.cidr.ipv4 }}
+      {{- if $net.cidr.ipv6Ula }}
+      ipv6Ula: {{ $net.cidr.ipv6Ula }}
+      {{- end }}
+      {{- if $net.cidr.ipv6AmazonProvided }}
+      ipv6AmazonProvided: {{ $net.cidr.ipv6AmazonProvided }}
+      {{- end }}
+    {{- if $net.availabilityZones }}
+    availabilityZones:
+    {{- range $az := $net.availabilityZones }}
+      - {{ $az }}
+    {{- end }}
+    {{- end }}
+    {{- if $net.subnets }}
+    subnets:
+      {{- if $net.subnets.public }}
+      public:
+      {{- range $subnet := $net.subnets.public }}
+        - name: {{ $subnet.name }}
+          id: {{ $subnet.id }}
+          availabilityZone: {{ $subnet.availabilityZone }}
+          ipv4CidrBlock: {{ $subnet.ipv4CidrBlock }}
+          {{- if $subnet.ipv6CidrBlock }}
+          ipv6CidrBlock: {{ $subnet.ipv6CidrBlock }}
+          {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if $net.subnets.private }}
+      private:
+      {{- range $subnet := $net.subnets.private }}
+        - name: {{ $subnet.name }}
+          id: {{ $subnet.id }}
+          availabilityZone: {{ $subnet.availabilityZone }}
+          ipv4CidrBlock: {{ $subnet.ipv4CidrBlock }}
+          {{- if $subnet.ipv6CidrBlock }}
+          ipv6CidrBlock: {{ $subnet.ipv6CidrBlock }}
+          {{- end }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if $net.routeTables }}
+    routeTables:
+      {{- if $net.routeTables.public }}
+      public:
+      {{- range $rt := $net.routeTables.public }}
+        - name: {{ $rt.name }}
+          id: {{ $rt.id }}
+      {{- end }}
+      {{- end }}
+      {{- if $net.routeTables.private }}
+      private:
+      {{- range $rt := $net.routeTables.private }}
+        - name: {{ $rt.name }}
+          id: {{ $rt.id }}
+          availabilityZone: {{ $rt.availabilityZone }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if $net.natGateways }}
+    natGateways:
+    {{- range $natConfig := $net.natGateways }}
+      - name: {{ $natConfig.name }}
+        id: {{ $natConfig.id }}
+        availabilityZone: {{ $natConfig.availabilityZone }}
+    {{- end }}
+    {{- end }}
+    {{- if $net.internetGateway }}
+    internetGateway:
+      id: {{ $net.internetGateway.id }}
+    {{- end }}
+    {{- if $net.egressOnlyInternetGateway }}
+    egressOnlyInternetGateway:
+      id: {{ $net.egressOnlyInternetGateway.id }}
+    {{- end }}
+    {{- if $net.transitGatewayAttachment }}
+    transitGatewayAttachment:
+      id: {{ $net.transitGatewayAttachment.id }}
+      ready: {{ $net.transitGatewayAttachment.ready }}
+    {{- end }}
+

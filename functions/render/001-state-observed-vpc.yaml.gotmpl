@@ -1,0 +1,61 @@
+# code: language=yaml
+#
+# Set $state.observed.vpc from atProvider values
+# Also builds readiness map for use by other observed files
+# Depends on: 000-state-init.yaml.gotmpl ($state)
+#
+
+{{- $raw := $.observed.resources | default dict }}
+
+# ==============================================================================
+# Resource Readiness Helper
+# Build readiness map once for use by all observed templates
+# ==============================================================================
+{{- $readiness := dict }}
+{{- range $name, $entry := $raw }}
+  {{- $ready := false }}
+  {{- $resource := $entry.resource | default dict }}
+  {{- $status := $resource.status | default dict }}
+  {{- $conditions := $status.conditions | default list }}
+  {{- range $conditions }}
+    {{- if and (eq (get . "type") "Ready") (eq (get . "status") "True") }}
+      {{- $ready = true }}
+    {{- end }}
+  {{- end }}
+  {{- $readiness = merge $readiness (dict $name $ready) }}
+{{- end }}
+
+# ==============================================================================
+# VPC Observed Values
+# ==============================================================================
+{{- $vpcEntry := get $raw "vpc" | default dict }}
+{{- $vpcResource := $vpcEntry.resource | default dict }}
+{{- $vpcStatus := $vpcResource.status | default dict }}
+{{- $vpcAtProvider := $vpcStatus.atProvider | default dict }}
+
+# Extract VPC values from atProvider
+{{- $vpcId := $vpcAtProvider.id | default "" }}
+{{- $vpcCidrBlock := $vpcAtProvider.cidrBlock | default "" }}
+{{- $vpcIpv4IpamPoolId := $vpcAtProvider.ipv4IpamPoolId | default "" }}
+{{- $vpcIpv6IpamPoolId := $vpcAtProvider.ipv6IpamPoolId | default "" }}
+{{- $vpcIpv6Cidr := $vpcAtProvider.ipv6CidrBlock | default "" }}
+{{- $vpcIpv6AssociationId := $vpcAtProvider.ipv6AssociationId | default "" }}
+{{- $vpcReady := get $readiness "vpc" | default false }}
+
+# ==============================================================================
+# Set $state.observed.vpc slice
+# ==============================================================================
+{{- $state = set $state "observed" (merge $state.observed (dict
+  "vpc" (dict
+    "ready" $vpcReady
+    "id" $vpcId
+    "cidr" $vpcCidrBlock
+    "ipv4IpamPoolId" $vpcIpv4IpamPoolId
+    "ipv6IpamPoolId" $vpcIpv6IpamPoolId
+    "ipv6Cidr" $vpcIpv6Cidr
+    "ipv6AssociationId" $vpcIpv6AssociationId
+  )
+  "_readiness" $readiness
+  "_raw" $raw
+)) }}
+

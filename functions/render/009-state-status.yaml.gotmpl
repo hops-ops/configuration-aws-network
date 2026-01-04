@@ -1,0 +1,181 @@
+# code: language=yaml
+#
+# Compute $state.status slice from observed and network state
+# All status computation happens here, keeping 999-status.yaml.gotmpl simple
+# Depends on: 008-state-network-routing.yaml.gotmpl (all $state slices complete)
+#
+
+{{- $obs := $state.observed }}
+{{- $net := $state.network }}
+
+# ==============================================================================
+# Compute IPAM Status (only if in IPAM mode)
+# ==============================================================================
+{{- $ipamStatus := dict }}
+{{- if $net.mode.ipam }}
+  {{- if $net.ipam.ipv4.enabled }}
+    {{- $ipamStatus = set $ipamStatus "ipv4" (dict "cidr" ($obs.vpc.cidr | default "Pending")) }}
+  {{- end }}
+  {{- if $net.ipam.ipv6Ula.enabled }}
+    {{- $ipamStatus = set $ipamStatus "ipv6Ula" (dict "cidr" ($obs.vpc.ipv6Cidr | default "Pending")) }}
+  {{- end }}
+{{- end }}
+
+# ==============================================================================
+# Compute Network Status
+# ==============================================================================
+{{- $cidrStatus := dict "ipv4" ($obs.vpc.cidr | default "Pending") }}
+{{- if $net.ipv6.ula.enabled }}
+  {{- $cidrStatus = set $cidrStatus "ipv6Ula" ($obs.vpc.ipv6Cidr | default "Pending") }}
+{{- end }}
+{{- if $net.ipv6.amazon.enabled }}
+  {{- $cidrStatus = set $cidrStatus "ipv6AmazonProvided" ($obs.vpc.ipv6Cidr | default "Pending") }}
+{{- end }}
+
+# Build availability zones list
+{{- $availabilityZonesStatus := list }}
+{{- range $az := $net.subnets.availabilityZones }}
+  {{- $availabilityZonesStatus = append $availabilityZonesStatus (printf "%s%s" $net.region $az) }}
+{{- end }}
+
+# Build subnets status
+{{- $subnetsStatus := dict }}
+{{- if $net.subnets.hasPublic }}
+  {{- $publicSubnetsStatus := list }}
+  {{- range $subnet := $net.subnets.public }}
+    {{- $subnetObs := get $obs.subnets $subnet.resourceName | default dict }}
+    {{- $subnetStatus := dict
+      "name" $subnet.name
+      "id" ($subnetObs.id | default "Pending")
+      "availabilityZone" $subnet.az
+      "ipv4CidrBlock" ($subnetObs.ipv4Cidr | default "Pending")
+    }}
+    {{- if $net.ipv6.enabled }}
+      {{- $subnetStatus = set $subnetStatus "ipv6CidrBlock" ($subnetObs.ipv6Cidr | default "Pending") }}
+    {{- end }}
+    {{- $publicSubnetsStatus = append $publicSubnetsStatus $subnetStatus }}
+  {{- end }}
+  {{- $subnetsStatus = set $subnetsStatus "public" $publicSubnetsStatus }}
+{{- end }}
+
+{{- if $net.subnets.hasPrivate }}
+  {{- $privateSubnetsStatus := list }}
+  {{- range $subnet := $net.subnets.private }}
+    {{- $subnetObs := get $obs.subnets $subnet.resourceName | default dict }}
+    {{- $subnetStatus := dict
+      "name" $subnet.name
+      "id" ($subnetObs.id | default "Pending")
+      "availabilityZone" $subnet.az
+      "ipv4CidrBlock" ($subnetObs.ipv4Cidr | default "Pending")
+    }}
+    {{- if $net.ipv6.enabled }}
+      {{- $subnetStatus = set $subnetStatus "ipv6CidrBlock" ($subnetObs.ipv6Cidr | default "Pending") }}
+    {{- end }}
+    {{- $privateSubnetsStatus = append $privateSubnetsStatus $subnetStatus }}
+  {{- end }}
+  {{- $subnetsStatus = set $subnetsStatus "private" $privateSubnetsStatus }}
+{{- end }}
+
+# Build route tables status
+{{- $routeTablesStatus := dict }}
+{{- if $net.subnets.hasPublic }}
+  {{- $routeTablesStatus = set $routeTablesStatus "public" (list (dict
+    "name" $net.routeTables.publicRouteTableName
+    "id" ($obs.rt.public.id | default "Pending")
+  )) }}
+{{- end }}
+{{- if $net.subnets.hasPrivate }}
+  {{- $privateRtStatus := list }}
+  {{- range $rt := $net.routeTables.privateRouteTables }}
+    {{- $rtObs := get $obs.rt.private $rt.resourceName | default dict }}
+    {{- $privateRtStatus = append $privateRtStatus (dict
+      "name" $rt.name
+      "id" ($rtObs.id | default "Pending")
+      "availabilityZone" (printf "%s%s" $net.region $rt.azSuffix)
+    ) }}
+  {{- end }}
+  {{- $routeTablesStatus = set $routeTablesStatus "private" $privateRtStatus }}
+{{- end }}
+
+# Build NAT gateways status
+{{- $natGatewaysStatus := list }}
+{{- if $net.nat.render }}
+  {{- range $natConfig := $net.nat.configs }}
+    {{- $natObs := get $obs.nat $natConfig.resourceName | default dict }}
+    {{- $natGatewaysStatus = append $natGatewaysStatus (dict
+      "name" $natConfig.name
+      "id" ($natObs.id | default "Pending")
+      "availabilityZone" (printf "%s%s" $net.region $natConfig.azSuffix)
+    ) }}
+  {{- end }}
+{{- end }}
+
+# Build internet gateway status
+{{- $igwStatus := dict }}
+{{- if $net.igw.render }}
+  {{- $igwStatus = dict "id" ($obs.igw.id | default "Pending") }}
+{{- end }}
+
+# Build egress-only IGW status
+{{- $eigwStatus := dict }}
+{{- if $net.eigw.render }}
+  {{- $eigwStatus = dict "id" ($obs.eigw.id | default "Pending") }}
+{{- end }}
+
+# Build transit gateway attachment status
+{{- $tgwStatus := dict }}
+{{- if and $net.tgw.enabled $net.tgw.id }}
+  {{- $tgwStatus = dict
+    "id" ($obs.tgw.attachmentId | default "Pending")
+    "ready" $obs.tgw.ready
+  }}
+{{- end }}
+
+# Assemble network status
+{{- $networkStatus := dict
+  "name" $net.name
+  "region" $net.region
+  "vpcId" ($obs.vpc.id | default "Pending")
+  "cidr" $cidrStatus
+  "availabilityZones" $availabilityZonesStatus
+}}
+
+{{- if or $net.subnets.hasPublic $net.subnets.hasPrivate }}
+  {{- $networkStatus = set $networkStatus "subnets" $subnetsStatus }}
+  {{- $networkStatus = set $networkStatus "routeTables" $routeTablesStatus }}
+{{- end }}
+
+{{- if $net.nat.render }}
+  {{- $networkStatus = set $networkStatus "natGateways" $natGatewaysStatus }}
+{{- end }}
+
+{{- if $net.igw.render }}
+  {{- $networkStatus = set $networkStatus "internetGateway" $igwStatus }}
+{{- end }}
+
+{{- if $net.eigw.render }}
+  {{- $networkStatus = set $networkStatus "egressOnlyInternetGateway" $eigwStatus }}
+{{- end }}
+
+{{- if and $net.tgw.enabled $net.tgw.id }}
+  {{- $networkStatus = set $networkStatus "transitGatewayAttachment" $tgwStatus }}
+{{- end }}
+
+# ==============================================================================
+# Set $state.status slice
+# ==============================================================================
+{{- $status := dict
+  "ready" $obs.vpc.ready
+  "network" $networkStatus
+  "spec" (dict
+    "raw" $state.spec.raw
+    "effective" $state.spec.effective
+  )
+}}
+
+{{- if $net.mode.ipam }}
+  {{- $status = set $status "ipam" $ipamStatus }}
+{{- end }}
+
+{{- $state = set $state "status" $status }}
+

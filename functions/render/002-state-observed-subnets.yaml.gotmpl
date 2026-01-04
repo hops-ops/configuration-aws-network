@@ -1,0 +1,35 @@
+# code: language=yaml
+#
+# Set $state.observed.subnets from atProvider values
+# Depends on: 001-state-observed-vpc.yaml.gotmpl ($state.observed._raw, $state.observed._readiness)
+#
+
+{{- $raw := $state.observed._raw }}
+{{- $readiness := $state.observed._readiness }}
+
+# ==============================================================================
+# Subnet Observations
+# Build a map of subnet observations by scanning for subnet-* resources
+# ==============================================================================
+{{- $subnets := dict }}
+
+{{- range $name, $entry := $raw }}
+  {{- if hasPrefix "subnet-" $name }}
+    {{- $subnetResource := $entry.resource | default dict }}
+    {{- $subnetStatus := $subnetResource.status | default dict }}
+    {{- $subnetAtProvider := $subnetStatus.atProvider | default dict }}
+    {{- $subnets = merge $subnets (dict $name (dict
+      "ready" (get $readiness $name | default false)
+      "id" ($subnetAtProvider.id | default "")
+      "ipv4Cidr" ($subnetAtProvider.cidrBlock | default "")
+      "ipv6Cidr" ($subnetAtProvider.ipv6CidrBlock | default "")
+      "az" ($subnetAtProvider.availabilityZone | default "")
+    )) }}
+  {{- end }}
+{{- end }}
+
+# ==============================================================================
+# Set $state.observed.subnets slice
+# ==============================================================================
+{{- $state = set $state "observed" (merge $state.observed (dict "subnets" $subnets)) }}
+
