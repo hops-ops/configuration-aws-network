@@ -23,6 +23,9 @@
   "kind" (($spec.providerConfigRef | default dict).kind | default "ProviderConfig")
 }}
 
+# Imports - external names for importing existing AWS resources
+{{- $imports := $spec.imports | default dict }}
+
 # Tags with defaults
 {{- $defaultTags := dict "hops" "true" (printf "hops.ops.com.ai/network") $name }}
 {{- $tags := merge (dict) $defaultTags ($spec.tags | default dict) }}
@@ -38,7 +41,6 @@
 {{- $vpcSpec := $spec.vpc | default dict }}
 {{- $vpc := dict
   "cidr" ($vpcSpec.cidr | default "")
-  "externalName" ($vpcSpec.externalName | default "")
   "managementPolicies" ($vpcSpec.managementPolicies | default $managementPolicies)
   "forProvider" (merge (dict "enableDnsHostnames" true "enableDnsSupport" true) ($vpcSpec.forProvider | default dict))
 }}
@@ -89,7 +91,6 @@
     "enabled" ($layoutPrivateSpec.enabled | default true)
     "netmaskLength" ($layoutPrivateSpec.netmaskLength | default 20)
   )
-  "externalNames" ($layoutSpec.externalNames | default dict)
   "managementPolicies" ($layoutSpec.managementPolicies | default $managementPolicies)
 }}
 
@@ -99,22 +100,18 @@
 # Internet gateway configuration
 {{- $igwSpec := $spec.internetGateway | default dict }}
 {{- $internetGateway := dict
-  "externalName" ($igwSpec.externalName | default "")
   "managementPolicies" ($igwSpec.managementPolicies | default $managementPolicies)
 }}
 
 # Egress-only internet gateway configuration
 {{- $eigwSpec := $spec.egressOnlyInternetGateway | default dict }}
 {{- $egressOnlyInternetGateway := dict
-  "externalName" ($eigwSpec.externalName | default "")
   "managementPolicies" ($eigwSpec.managementPolicies | default $managementPolicies)
 }}
 
 # Route tables configuration
 {{- $rtSpec := $spec.routeTables | default dict }}
 {{- $routeTables := dict
-  "externalNames" ($rtSpec.externalNames | default dict)
-  "associationExternalNames" ($rtSpec.associationExternalNames | default dict)
   "managementPolicies" ($rtSpec.managementPolicies | default $managementPolicies)
 }}
 
@@ -123,8 +120,6 @@
 {{- $nat := dict
   "enabled" ($natSpec.enabled | default false)
   "strategy" ($natSpec.strategy | default "SingleAz")
-  "externalNames" ($natSpec.externalNames | default dict)
-  "eipExternalNames" ($natSpec.eipExternalNames | default dict)
   "managementPolicies" ($natSpec.managementPolicies | default $managementPolicies)
 }}
 
@@ -165,6 +160,7 @@
       "providerConfigRef" $providerConfigRef
       "tags" $tags
       "labels" $labels
+      "imports" $imports
       "vpc" $vpc
       "ipv6" $ipv6
       "ipam" $ipam

@@ -12,7 +12,6 @@
 {{- $igwRender := $state.network.subnets.hasPublic }}
 {{- $igw := dict
   "render" $igwRender
-  "externalName" $eff.internetGateway.externalName
   "managementPolicies" $eff.internetGateway.managementPolicies
 }}
 {{- $state = set $state "network" (merge $state.network (dict "igw" $igw)) }}
@@ -23,7 +22,6 @@
 {{- $eigwRender := and $state.network.ipv6.enabled $state.network.subnets.hasPrivate }}
 {{- $eigw := dict
   "render" $eigwRender
-  "externalName" $eff.egressOnlyInternetGateway.externalName
   "managementPolicies" $eff.egressOnlyInternetGateway.managementPolicies
 }}
 {{- $state = set $state "network" (merge $state.network (dict "eigw" $eigw)) }}
@@ -80,8 +78,6 @@
   "configs" $natConfigsForCreation
   "configsByAz" $natConfigsByAz
   "singleNatSuffix" $singleNatSuffix
-  "externalNames" $eff.nat.externalNames
-  "eipExternalNames" $eff.nat.eipExternalNames
   "managementPolicies" $eff.nat.managementPolicies
 }}
 {{- $state = set $state "network" (merge $state.network (dict "nat" $nat)) }}
@@ -125,8 +121,6 @@
   "publicRouteTableName" (printf "%s-public" $state.network.name)
   "privateRouteTables" $privateRouteTables
   "privateRtByAz" $privateRtByAz
-  "externalNames" $eff.routeTables.externalNames
-  "associationExternalNames" $eff.routeTables.associationExternalNames
   "managementPolicies" $eff.routeTables.managementPolicies
 }}
 {{- $state = set $state "network" (merge $state.network (dict "routeTables" $routeTables)) }}

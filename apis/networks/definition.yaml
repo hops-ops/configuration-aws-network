@@ -42,6 +42,48 @@ spec:
                 default:
                 - "*"
 
+              # Imports - external names for importing existing AWS resources
+              imports:
+                type: object
+                description: |
+                  External names of existing AWS resources to import into Crossplane management.
+                  Use with managementPolicies excluding "Delete" to adopt without risk of deletion.
+                properties:
+                  vpc:
+                    type: string
+                    description: Existing VPC ID (e.g., vpc-0123456789abcdef0).
+                  subnets:
+                    type: object
+                    description: Map of subnet resource names to existing subnet IDs.
+                    additionalProperties:
+                      type: string
+                  internetGateway:
+                    type: string
+                    description: Existing Internet Gateway ID.
+                  egressOnlyInternetGateway:
+                    type: string
+                    description: Existing Egress-Only Internet Gateway ID.
+                  natGateways:
+                    type: object
+                    description: Map of NAT gateway names to existing NAT Gateway IDs.
+                    additionalProperties:
+                      type: string
+                  eips:
+                    type: object
+                    description: Map of EIP names to existing allocation IDs.
+                    additionalProperties:
+                      type: string
+                  routeTables:
+                    type: object
+                    description: Map of route table names to existing route table IDs.
+                    additionalProperties:
+                      type: string
+                  routeTableAssociations:
+                    type: object
+                    description: Map of association names to existing association IDs.
+                    additionalProperties:
+                      type: string
+
               # Labels
               labels:
                 type: object
@@ -141,12 +183,6 @@ spec:
                         type: integer
                         description: Netmask length for private subnets (e.g., 20 for /20).
                         default: 20
-                  externalNames:
-                    type: object
-                    description: |
-                      Map of subnet keys to existing AWS subnet IDs for import.
-                      Keys use pattern "{tier}-{az}" (e.g., "public-a", "private-b").
-                    x-kubernetes-preserve-unknown-fields: true
                   managementPolicies:
                     type: array
                     description: Management operations for layout subnets. Overrides top-level if set.
@@ -175,11 +211,6 @@ spec:
                 description: |
                   VPC configuration. CIDR can be explicit or from networkAllocations.
                 properties:
-                  externalName:
-                    type: string
-                    description: |
-                      VPC ID to adopt (e.g., vpc-0123456789abcdef0).
-                      When set, Crossplane imports the existing VPC instead of creating a new one.
                   managementPolicies:
                     type: array
                     description: Management operations for this VPC. Overrides top-level if set.
@@ -250,11 +281,6 @@ spec:
                     name:
                       type: string
                       description: Subnet name (e.g., "public-a", "private-b").
-                    externalName:
-                      type: string
-                      description: |
-                        Subnet ID to adopt (e.g., subnet-0123456789abcdef0).
-                        When set, Crossplane imports the existing subnet instead of creating a new one.
                     managementPolicies:
                       type: array
                       description: Management operations for this subnet. Overrides top-level if set.
@@ -299,11 +325,6 @@ spec:
                 type: object
                 description: Internet Gateway configuration.
                 properties:
-                  externalName:
-                    type: string
-                    description: |
-                      IGW ID to adopt (e.g., igw-0123456789abcdef0).
-                      When set, Crossplane imports the existing IGW instead of creating a new one.
                   managementPolicies:
                     type: array
                     description: Management operations for the IGW. Overrides top-level if set.
@@ -322,11 +343,6 @@ spec:
                 type: object
                 description: Egress-only Internet Gateway configuration for IPv6.
                 properties:
-                  externalName:
-                    type: string
-                    description: |
-                      EIGW ID to adopt (e.g., eigw-0123456789abcdef0).
-                      When set, Crossplane imports the existing EIGW instead of creating a new one.
                   managementPolicies:
                     type: array
                     description: Management operations for the EIGW. Overrides top-level if set.
@@ -369,18 +385,6 @@ spec:
                       - Update
                       - Delete
                       - LateInitialize
-                  externalNames:
-                    type: object
-                    description: |
-                      Map of AZ suffix to existing NAT Gateway IDs for import.
-                      Keys are AZ suffixes (e.g., "a", "b", "c").
-                    x-kubernetes-preserve-unknown-fields: true
-                  eipExternalNames:
-                    type: object
-                    description: |
-                      Map of AZ suffix to existing EIP allocation IDs for import.
-                      Keys are AZ suffixes (e.g., "a", "b", "c").
-                    x-kubernetes-preserve-unknown-fields: true
 
               # Route Tables
               routeTables:
@@ -399,18 +403,6 @@ spec:
                       - Update
                       - Delete
                       - LateInitialize
-                  externalNames:
-                    type: object
-                    description: |
-                      Map of route table keys to existing AWS route table IDs for import.
-                      Keys: "public" for public RT, "private-{az}" for private RTs.
-                    x-kubernetes-preserve-unknown-fields: true
-                  associationExternalNames:
-                    type: object
-                    description: |
-                      Map of subnet keys to existing route table association IDs for import.
-                      Keys use pattern "{tier}-{az}" (e.g., "public-a", "private-b").
-                    x-kubernetes-preserve-unknown-fields: true
 
               # Transit Gateway
               transitGateway:

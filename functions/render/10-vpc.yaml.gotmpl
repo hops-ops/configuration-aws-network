@@ -13,8 +13,8 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "vpc" }}
-    {{- if $state.network.vpc.externalName }}
-    crossplane.io/external-name: {{ $state.network.vpc.externalName | quote }}
+    {{- if $state.network.imports.vpc }}
+    crossplane.io/external-name: {{ $state.network.imports.vpc | quote }}
     {{- end }}
   labels: {{ $state.network.labels | toJson }}
 spec:

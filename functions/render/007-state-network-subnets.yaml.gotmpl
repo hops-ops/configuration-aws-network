@@ -22,7 +22,6 @@
 
   {{- range $subnet := $eff.subnets }}
     {{- $subnetName := $subnet.name | default "" }}
-    {{- $subnetExternalName := $subnet.externalName | default "" }}
     {{- $subnetManagementPolicies := $subnet.managementPolicies | default $eff.managementPolicies }}
     {{- $subnetCidr := $subnet.cidr | default "" }}
     {{- $subnetAz := $subnet.availabilityZone | default "" }}
@@ -63,7 +62,6 @@
 
     {{- $config := dict
       "name" $subnetName
-      "externalName" $subnetExternalName
       "managementPolicies" $subnetManagementPolicies
       "resourceName" (printf "subnet-%s" $subnetName)
       "cidr" $subnetCidr
@@ -165,13 +163,8 @@
         {{- $ipv6CidrBlock := $ipv6AmazonCidr }}
         {{- $assignIpv6 := ne $ipv6CidrBlock "" }}
 
-        # Get externalName from layout map (key = "public-{az}")
-        {{- $subnetKey := printf "public-%s" $az }}
-        {{- $subnetExternalName := get $eff.subnetLayout.externalNames $subnetKey | default "" }}
-
         {{- $config := dict
           "name" $subnetName
-          "externalName" $subnetExternalName
           "managementPolicies" $eff.subnetLayout.managementPolicies
           "resourceName" (printf "subnet-public-%s" $az)
           "cidr" $publicCidr
@@ -248,13 +241,8 @@
         {{- $ipv6CidrBlock := $ipv6UlaCidr | default $ipv6AmazonCidr }}
         {{- $assignIpv6 := ne $ipv6CidrBlock "" }}
 
-        # Get externalName from layout map (key = "private-{az}")
-        {{- $subnetKey := printf "private-%s" $az }}
-        {{- $subnetExternalName := get $eff.subnetLayout.externalNames $subnetKey | default "" }}
-
         {{- $config := dict
           "name" $subnetName
-          "externalName" $subnetExternalName
           "managementPolicies" $eff.subnetLayout.managementPolicies
           "resourceName" (printf "subnet-private-%s" $az)
           "cidr" $privateCidr

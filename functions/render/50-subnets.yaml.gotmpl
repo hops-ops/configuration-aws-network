@@ -12,7 +12,8 @@
 # ==============================================================================
 {{- range $subnet := $state.network.subnets.public }}
 {{- if ne $subnet.cidr "" }}
-{{- $subnetExternalName := $subnet.externalName | default "" }}
+{{- $subnetKey := printf "public-%s" $subnet.azSuffix }}
+{{- $subnetExternalName := get $state.network.imports.subnets $subnetKey | default "" }}
 {{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.network.managementPolicies }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
@@ -75,7 +76,8 @@ spec:
 # ==============================================================================
 {{- range $subnet := $state.network.subnets.private }}
 {{- if ne $subnet.cidr "" }}
-{{- $subnetExternalName := $subnet.externalName | default "" }}
+{{- $subnetKey := printf "private-%s" $subnet.azSuffix }}
+{{- $subnetExternalName := get $state.network.imports.subnets $subnetKey | default "" }}
 {{- $subnetMgmtPolicies := $subnet.managementPolicies | default $state.network.managementPolicies }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1

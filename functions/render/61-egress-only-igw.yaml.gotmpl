@@ -13,8 +13,8 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "egress-only-igw" }}
-    {{- if $state.network.eigw.externalName }}
-    crossplane.io/external-name: {{ $state.network.eigw.externalName | quote }}
+    {{- if $state.network.imports.egressOnlyInternetGateway }}
+    crossplane.io/external-name: {{ $state.network.imports.egressOnlyInternetGateway | quote }}
     {{- end }}
   labels: {{ $state.network.labels | toJson }}
 spec:

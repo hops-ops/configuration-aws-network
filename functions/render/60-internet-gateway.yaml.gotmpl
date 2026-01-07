@@ -13,8 +13,8 @@ metadata:
   name: {{ $state.network.name }}
   annotations:
     {{ setResourceNameAnnotation "internet-gateway" }}
-    {{- if $state.network.igw.externalName }}
-    crossplane.io/external-name: {{ $state.network.igw.externalName | quote }}
+    {{- if $state.network.imports.internetGateway }}
+    crossplane.io/external-name: {{ $state.network.imports.internetGateway | quote }}
     {{- end }}
   labels: {{ $state.network.labels | toJson }}
 spec:

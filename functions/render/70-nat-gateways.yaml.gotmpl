@@ -7,8 +7,8 @@
 
 {{- if $state.network.nat.render }}
 {{- range $natConfig := $state.network.nat.configs }}
-{{- $eipExternalName := get $state.network.nat.eipExternalNames $natConfig.azSuffix | default "" }}
-{{- $natExternalName := get $state.network.nat.externalNames $natConfig.azSuffix | default "" }}
+{{- $eipExternalName := get $state.network.imports.eips $natConfig.azSuffix | default "" }}
+{{- $natExternalName := get $state.network.imports.natGateways $natConfig.azSuffix | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: EIP

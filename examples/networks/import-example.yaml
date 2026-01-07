@@ -1,6 +1,6 @@
 # Import Existing Resources Example
 # ==================================
-# This example demonstrates importing existing AWS resources using externalName
+# This example demonstrates importing existing AWS resources using the imports object
 # and per-resource managementPolicies for fine-grained control.
 #
 # Per-resource managementPolicies allow:
@@ -10,11 +10,18 @@
 #
 # To use for import:
 # 1. Get resource IDs from AWS console or CLI
-# 2. Set externalName on vpc, internetGateway, egressOnlyInternetGateway
-# 3. Set subnetLayout.externalNames map with keys like "public-a", "private-b"
-# 4. Set routeTables.externalNames map with keys like "public", "private-a"
-# 5. If using NAT, set nat.externalNames and nat.eipExternalNames maps
-# 6. Set managementPolicies on each resource type as needed
+# 2. Populate the imports object with resource IDs:
+#    - imports.vpc: VPC ID
+#    - imports.internetGateway: IGW ID
+#    - imports.egressOnlyInternetGateway: EIGW ID (if using IPv6)
+#    - imports.subnets: Map of subnet keys to subnet IDs
+#    - imports.routeTables: Map of route table keys to route table IDs
+#    - imports.routeTableAssociations: Map of association keys to association IDs
+#    - imports.natGateways: Map of AZ suffixes to NAT Gateway IDs (if using NAT)
+#    - imports.eips: Map of AZ suffixes to EIP allocation IDs (if using NAT)
+# 3. Set managementPolicies to orphan (exclude Delete) for safe adoption
+# 4. Apply and verify resources sync correctly
+# 5. Optionally update managementPolicies per resource type for full control
 
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: Network
@@ -35,26 +42,39 @@ spec:
     Environment: production
     Team: platform
 
-  # VPC with import - override to fully manage after import
+  # Import existing AWS resources
+  imports:
+    vpc: "vpc-0123456789abcdef0"
+    internetGateway: "igw-0123456789abcdef0"
+    # egressOnlyInternetGateway: "eigw-0123456789abcdef0"
+    subnets:
+      public-a: "subnet-0111111111111111a"
+      public-b: "subnet-0222222222222222b"
+      private-a: "subnet-0333333333333333a"
+      private-b: "subnet-0444444444444444b"
+    routeTables:
+      public: "rtb-0aaaaaaaaaaaaaaa0"
+      private-a: "rtb-0bbbbbbbbbbbbbbb1"
+      private-b: "rtb-0ccccccccccccccc2"
+    routeTableAssociations:
+      public-a: "rtbassoc-0aaaa11111111111a"
+      public-b: "rtbassoc-0bbbb22222222222b"
+      private-a: "rtbassoc-0cccc33333333333a"
+      private-b: "rtbassoc-0dddd44444444444b"
+    # NAT Gateways and EIPs (if using NAT)
+    # natGateways:
+    #   a: "nat-0ddddddddddddddd0"
+    # eips:
+    #   a: "eipalloc-0eeeeeeeeeeeeeee0"
+
+  # VPC configuration - override managementPolicies for full control after import
   vpc:
     cidr: "10.0.0.0/16"
-    externalName: "vpc-0123456789abcdef0"
     # Full control - Crossplane will delete if claim is deleted
     managementPolicies:
     - "*"
 
-  # Internet Gateway with import
-  internetGateway:
-    externalName: "igw-0123456789abcdef0"
-    # Inherit top-level orphan policy
-
-  # Egress-only IGW with import (for IPv6)
-  # egressOnlyInternetGateway:
-  #   externalName: "eigw-0123456789abcdef0"
-  #   managementPolicies:
-  #   - "*"
-
-  # Subnet layout with import map
+  # Subnet layout configuration
   subnetLayout:
     availabilityZones: ["a", "b"]
     public:
@@ -63,38 +83,17 @@ spec:
     private:
       enabled: true
       netmaskLength: 20
-    # Map subnet keys to existing AWS subnet IDs
-    externalNames:
-      public-a: "subnet-0111111111111111a"
-      public-b: "subnet-0222222222222222b"
-      private-a: "subnet-0333333333333333a"
-      private-b: "subnet-0444444444444444b"
     # Subnets get full control - delete with claim
     managementPolicies:
     - "*"
 
-  # Route tables with import map
+  # Route tables - full control
   routeTables:
-    externalNames:
-      public: "rtb-0aaaaaaaaaaaaaaa0"
-      private-a: "rtb-0bbbbbbbbbbbbbbb1"
-      private-b: "rtb-0ccccccccccccccc2"
-    # Route table associations - keys match subnet pattern
-    associationExternalNames:
-      public-a: "rtbassoc-0aaaa11111111111a"
-      public-b: "rtbassoc-0bbbb22222222222b"
-      private-a: "rtbassoc-0cccc33333333333a"
-      private-b: "rtbassoc-0dddd44444444444b"
-    # Route tables get full control
     managementPolicies:
     - "*"
 
   # NAT with import (if enabled)
   nat:
     enabled: false
-    # externalNames:
-    #   a: "nat-0ddddddddddddddd0"
-    # eipExternalNames:
-    #   a: "eipalloc-0eeeeeeeeeeeeeee0"
     # managementPolicies:
     # - "*"

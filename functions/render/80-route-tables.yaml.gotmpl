@@ -11,7 +11,7 @@
 # Public Route Table (shared across all public subnets)
 # ==============================================================================
 {{- if $state.network.subnets.hasPublic }}
-{{- $publicRtExternalName := get $state.network.routeTables.externalNames "public" | default "" }}
+{{- $publicRtExternalName := get $state.network.imports.routeTables "public" | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
@@ -61,7 +61,7 @@ spec:
 # Public subnet associations
 {{- range $subnet := $state.network.subnets.public }}
 {{- $rtaKey := printf "public-%s" $subnet.azSuffix }}
-{{- $rtaExternalName := get $state.network.routeTables.associationExternalNames $rtaKey | default "" }}
+{{- $rtaExternalName := get $state.network.imports.routeTableAssociations $rtaKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
@@ -93,7 +93,7 @@ spec:
 {{- range $rt := $state.network.routeTables.privateRouteTables }}
 {{- $rtObs := get $state.observed.rt.private $rt.resourceName | default dict }}
 {{- $privateRtKey := printf "private-%s" $rt.azSuffix }}
-{{- $privateRtExternalName := get $state.network.routeTables.externalNames $privateRtKey | default "" }}
+{{- $privateRtExternalName := get $state.network.imports.routeTables $privateRtKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTable
@@ -146,7 +146,7 @@ spec:
 {{- $rt := get $state.network.routeTables.privateRtByAz $subnet.azSuffix }}
 {{- if $rt }}
 {{- $rtaKey := printf "private-%s" $subnet.azSuffix }}
-{{- $rtaExternalName := get $state.network.routeTables.associationExternalNames $rtaKey | default "" }}
+{{- $rtaExternalName := get $state.network.imports.routeTableAssociations $rtaKey | default "" }}
 ---
 apiVersion: ec2.aws.m.upbound.io/v1beta1
 kind: RouteTableAssociation
