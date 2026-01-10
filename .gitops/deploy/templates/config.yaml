@@ -8,10 +8,10 @@ spec:
     - name: ghcr
   skipDependencyResolution: {{ .Values.skipDependencyResolution }}
 
+{{- if .Values.skipDependencyResolution }}
 ---
-
-# skipDependencyResolution false would name this hops-ops-aws-networkrender
-# so we need to match that format to avoid issues with the package name
+# Only rendered when skipDependencyResolution=true (platform/advanced use case)
+# When false, Crossplane automatically resolves and installs embedded functions
 apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
@@ -21,3 +21,4 @@ spec:
   packagePullSecrets:
     - name: ghcr
   skipDependencyResolution: {{ .Values.skipDependencyResolution }}
+{{- end }}
