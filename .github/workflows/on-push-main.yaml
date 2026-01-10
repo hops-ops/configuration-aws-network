@@ -74,3 +74,4 @@ jobs:
           - filePath: .gitops/deploy/Chart.yaml
             selector: .version
             valuePrefix: ""
+
