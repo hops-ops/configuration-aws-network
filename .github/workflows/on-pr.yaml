@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   validate:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@v2.7.0
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@feat/cache
     with:
       examples: |
         [
@@ -46,10 +46,10 @@ jobs:
       error_on_missing_schemas: true
 
   test:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.7.0
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@feat/cache
 
   e2e:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.7.0
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@feat/cache
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -65,7 +65,7 @@ jobs:
     needs:
       - validate
       - test
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.7.0
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@feat/cache
     secrets: inherit
     with:
       tag: pr-${{ github.event.pull_request.number }}-${{ github.sha }}
