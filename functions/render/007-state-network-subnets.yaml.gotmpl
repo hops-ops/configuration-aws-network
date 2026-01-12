@@ -72,7 +72,7 @@
       "public" $isPublic
       "mapPublicIpOnLaunch" $mapPublicIp
       "tags" $subnetTags
-      "labels" (merge $state.network.labels (dict "hops.ops.com.ai/tier" $tier "hops.ops.com.ai/az" $azSuffix))
+      "labels" (merge (dict) $state.network.labels (dict "hops.ops.com.ai/tier" $tier "hops.ops.com.ai/az" $azSuffix))
       "ipv6UlaCidr" $subnetUlaCidr
       "ipv6AmazonCidr" $subnetAmazonCidr
     }}
@@ -180,7 +180,7 @@
           "public" true
           "mapPublicIpOnLaunch" true
           "tags" $subnetTags
-          "labels" (merge $state.network.labels (dict "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $az))
+          "labels" (merge (dict) $state.network.labels (dict "hops.ops.com.ai/tier" "public" "hops.ops.com.ai/az" $az))
           "ipv6CidrBlock" $ipv6CidrBlock
           "assignIpv6AddressOnCreation" $assignIpv6
         }}
@@ -263,7 +263,7 @@
           "public" false
           "mapPublicIpOnLaunch" false
           "tags" $subnetTags
-          "labels" (merge $state.network.labels (dict "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $az))
+          "labels" (merge (dict) $state.network.labels (dict "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $az))
           "ipv6CidrBlock" $ipv6CidrBlock
           "assignIpv6AddressOnCreation" $assignIpv6
         }}

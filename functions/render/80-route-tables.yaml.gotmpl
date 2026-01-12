@@ -22,7 +22,7 @@ metadata:
     {{- if $publicRtExternalName }}
     crossplane.io/external-name: {{ $publicRtExternalName | quote }}
     {{- end }}
-  labels: {{ merge $state.network.labels (dict "hops.ops.com.ai/tier" "public") | toJson }}
+  labels: {{ merge (dict) $state.network.labels (dict "hops.ops.com.ai/tier" "public") | toJson }}
 spec:
   managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:
@@ -104,7 +104,7 @@ metadata:
     {{- if $privateRtExternalName }}
     crossplane.io/external-name: {{ $privateRtExternalName | quote }}
     {{- end }}
-  labels: {{ merge $state.network.labels (dict "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $rt.azSuffix) | toJson }}
+  labels: {{ merge (dict) $state.network.labels (dict "hops.ops.com.ai/tier" "private" "hops.ops.com.ai/az" $rt.azSuffix) | toJson }}
 spec:
   managementPolicies: {{ $state.network.routeTables.managementPolicies | toJson }}
   forProvider:

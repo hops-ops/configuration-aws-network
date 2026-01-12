@@ -123,7 +123,7 @@ _items = [
                         tags: {
                             "hops.ops.com.ai/test-repo": "https://github.com/hops-ops/aws-network"
                             "hops.ops.com.ai/test-run-time": _now
-                            "hops.ops.com.ai/persistent": "true"
+                            "hops.ops.com.ai/ephemeral": "true"
                         }
                         # Use IPAM to auto-allocate VPC CIDRs
                         ipam: {
@@ -170,7 +170,7 @@ _items = [
                         tags: {
                             "hops.ops.com.ai/test-repo": "https://github.com/hops-ops/aws-network"
                             "hops.ops.com.ai/test-run-time": _now
-                            "hops.ops.com.ai/ephemeral": "true"
+                            "hops.ops.com.ai/persistent": "true"
                         }
                         vpc: {
                             if _vpc_external_name:
