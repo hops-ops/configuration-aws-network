@@ -19,15 +19,15 @@ fi
 echo "# Fetching AWS resources for network: $NETWORK_NAME in $REGION"
 echo ""
 
-# Find VPC by Name tag
+# Find VPC by hops.ops.com.ai/network tag
 VPC_ID=$(aws ec2 describe-vpcs \
     --region "$REGION" \
-    --filters "Name=tag:Name,Values=$NETWORK_NAME" \
+    --filters "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" \
     --query 'Vpcs[0].VpcId' \
     --output text 2>/dev/null || echo "None")
 
 if [[ "$VPC_ID" == "None" || -z "$VPC_ID" ]]; then
-    echo "# ERROR: VPC not found with Name tag '$NETWORK_NAME'"
+    echo "# ERROR: VPC not found with hops.ops.com.ai/network tag '$NETWORK_NAME'"
     exit 1
 fi
 
@@ -35,10 +35,10 @@ echo "# VPC: $VPC_ID"
 echo "_vpc_external_name = \"$VPC_ID\""
 echo ""
 
-# Find Internet Gateway attached to VPC
+# Find Internet Gateway by tag
 IGW_ID=$(aws ec2 describe-internet-gateways \
     --region "$REGION" \
-    --filters "Name=attachment.vpc-id,Values=$VPC_ID" \
+    --filters "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" \
     --query 'InternetGateways[0].InternetGatewayId' \
     --output text 2>/dev/null || echo "None")
 
@@ -51,10 +51,10 @@ else
 fi
 echo ""
 
-# Find Egress-Only Internet Gateway
+# Find Egress-Only Internet Gateway by tag
 EIGW_ID=$(aws ec2 describe-egress-only-internet-gateways \
     --region "$REGION" \
-    --query "EgressOnlyInternetGateways[?Attachments[?VpcId=='$VPC_ID']].EgressOnlyInternetGatewayId | [0]" \
+    --query "EgressOnlyInternetGateways[?Tags[?Key=='hops.ops.com.ai/network' && Value=='$NETWORK_NAME']].EgressOnlyInternetGatewayId | [0]" \
     --output text 2>/dev/null || echo "None")
 
 if [[ "$EIGW_ID" != "None" && -n "$EIGW_ID" ]]; then
@@ -66,30 +66,23 @@ else
 fi
 echo ""
 
-# Find Subnets
+# Find Subnets by tag
 echo "# Subnets"
 echo "_subnet_external_names = {"
 
 aws ec2 describe-subnets \
     --region "$REGION" \
-    --filters "Name=vpc-id,Values=$VPC_ID" \
-    --query 'Subnets[*].[Tags[?Key==`Name`].Value | [0], SubnetId, AvailabilityZone, Tags[?Key==`hops.ops.com.ai/tier`].Value | [0]]' \
-    --output text 2>/dev/null | while read -r name subnet_id az tier; do
-    if [[ -n "$name" && -n "$subnet_id" ]]; then
+    --filters "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" \
+    --query 'Subnets[*].[SubnetId, AvailabilityZone, Tags[?Key==`hops.ops.com.ai/tier`].Value | [0]]' \
+    --output text 2>/dev/null | while read -r subnet_id az tier; do
+    if [[ -n "$subnet_id" ]]; then
         # Extract AZ suffix (last char)
         az_suffix="${az: -1}"
         # Build key from tier and az
-        if [[ -n "$tier" ]]; then
+        if [[ -n "$tier" && "$tier" != "None" ]]; then
             key="${tier}-${az_suffix}"
         else
-            # Fallback: try to parse from name (e.g., network-public-a)
-            if [[ "$name" =~ -public-([a-z])$ ]]; then
-                key="public-${BASH_REMATCH[1]}"
-            elif [[ "$name" =~ -private-([a-z])$ ]]; then
-                key="private-${BASH_REMATCH[1]}"
-            else
-                key="unknown-${az_suffix}"
-            fi
+            key="unknown-${az_suffix}"
         fi
         echo "    \"$key\": \"$subnet_id\""
     fi
@@ -98,34 +91,23 @@ done
 echo "}"
 echo ""
 
-# Find Route Tables
+# Find Route Tables by tag
 echo "# Route Tables"
 echo "_route_table_external_names = {"
 
 aws ec2 describe-route-tables \
     --region "$REGION" \
-    --filters "Name=vpc-id,Values=$VPC_ID" \
-    --query 'RouteTables[*].[Tags[?Key==`Name`].Value | [0], RouteTableId, Tags[?Key==`hops.ops.com.ai/tier`].Value | [0], Tags[?Key==`hops.ops.com.ai/az`].Value | [0]]' \
-    --output text 2>/dev/null | while read -r name rt_id tier az; do
-    if [[ -n "$name" && -n "$rt_id" ]]; then
-        # Skip main route table (no Name tag usually)
-        if [[ "$name" == "None" ]]; then
-            continue
-        fi
+    --filters "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" \
+    --query 'RouteTables[*].[RouteTableId, Tags[?Key==`hops.ops.com.ai/tier`].Value | [0], Tags[?Key==`hops.ops.com.ai/az`].Value | [0]]' \
+    --output text 2>/dev/null | while read -r rt_id tier az; do
+    if [[ -n "$rt_id" ]]; then
         # Build key from tier and az
         if [[ "$tier" == "public" ]]; then
             key="public"
         elif [[ "$tier" == "private" && -n "$az" && "$az" != "None" ]]; then
             key="private-${az}"
         else
-            # Fallback: try to parse from name
-            if [[ "$name" =~ -public$ ]]; then
-                key="public"
-            elif [[ "$name" =~ -private-rt-([a-z])$ ]]; then
-                key="private-${BASH_REMATCH[1]}"
-            else
-                continue
-            fi
+            continue
         fi
         echo "    \"$key\": \"$rt_id\""
     fi
@@ -134,14 +116,14 @@ done
 echo "}"
 echo ""
 
-# Find Route Table Associations
+# Find Route Table Associations by tag
 echo "# Route Table Associations"
 echo "_rta_external_names = {"
 
 # Get all route tables with their associations
 aws ec2 describe-route-tables \
     --region "$REGION" \
-    --filters "Name=vpc-id,Values=$VPC_ID" \
+    --filters "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" \
     --query 'RouteTables[*].Associations[?!Main].[RouteTableAssociationId, SubnetId]' \
     --output text 2>/dev/null | while read -r assoc_id subnet_id; do
     if [[ -n "$assoc_id" && -n "$subnet_id" && "$assoc_id" != "None" ]]; then
@@ -149,21 +131,16 @@ aws ec2 describe-route-tables \
         subnet_info=$(aws ec2 describe-subnets \
             --region "$REGION" \
             --subnet-ids "$subnet_id" \
-            --query 'Subnets[0].[AvailabilityZone, Tags[?Key==`hops.ops.com.ai/tier`].Value | [0], Tags[?Key==`Name`].Value | [0]]' \
+            --query 'Subnets[0].[AvailabilityZone, Tags[?Key==`hops.ops.com.ai/tier`].Value | [0]]' \
             --output text 2>/dev/null)
 
         az=$(echo "$subnet_info" | cut -f1)
         tier=$(echo "$subnet_info" | cut -f2)
-        name=$(echo "$subnet_info" | cut -f3)
 
         az_suffix="${az: -1}"
 
         if [[ -n "$tier" && "$tier" != "None" ]]; then
             key="${tier}-${az_suffix}"
-        elif [[ "$name" =~ -public-([a-z])$ ]]; then
-            key="public-${BASH_REMATCH[1]}"
-        elif [[ "$name" =~ -private-([a-z])$ ]]; then
-            key="private-${BASH_REMATCH[1]}"
         else
             key="unknown-${az_suffix}"
         fi
@@ -175,11 +152,11 @@ done
 echo "}"
 echo ""
 
-# Find NAT Gateways
+# Find NAT Gateways by tag
 echo "# NAT Gateways"
 NAT_COUNT=$(aws ec2 describe-nat-gateways \
     --region "$REGION" \
-    --filter "Name=vpc-id,Values=$VPC_ID" "Name=state,Values=available" \
+    --filter "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" "Name=state,Values=available" \
     --query 'length(NatGateways)' \
     --output text 2>/dev/null || echo "0")
 
@@ -188,7 +165,7 @@ if [[ "$NAT_COUNT" -gt 0 ]]; then
 
     aws ec2 describe-nat-gateways \
         --region "$REGION" \
-        --filter "Name=vpc-id,Values=$VPC_ID" "Name=state,Values=available" \
+        --filter "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" "Name=state,Values=available" \
         --query 'NatGateways[*].[NatGatewayId, SubnetId]' \
         --output text 2>/dev/null | while read -r nat_id subnet_id; do
         if [[ -n "$nat_id" && -n "$subnet_id" ]]; then
@@ -211,7 +188,7 @@ if [[ "$NAT_COUNT" -gt 0 ]]; then
 
     aws ec2 describe-nat-gateways \
         --region "$REGION" \
-        --filter "Name=vpc-id,Values=$VPC_ID" "Name=state,Values=available" \
+        --filter "Name=tag:hops.ops.com.ai/network,Values=$NETWORK_NAME" "Name=state,Values=available" \
         --query 'NatGateways[*].[NatGatewayAddresses[0].AllocationId, SubnetId]' \
         --output text 2>/dev/null | while read -r alloc_id subnet_id; do
         if [[ -n "$alloc_id" && -n "$subnet_id" && "$alloc_id" != "None" ]]; then

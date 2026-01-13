@@ -49,48 +49,41 @@ _ipv6_private_pool_id = "ipam-pool-0ca730678e463dbfc"
 _orphan = ["Create", "Observe", "Update", "LateInitialize"]
 
 # External names for import (leave empty for create, populate for import)
-# VPC: vpc-08b36c3876f7483c6
-_vpc_external_name = ""
+# VPC: vpc-0c20c458dcb738f21
+_vpc_external_name = "vpc-0c20c458dcb738f21"
 
-# Internet Gateway: igw-03a2b57e7564cda9f
-_igw_external_name = ""
+# Internet Gateway: igw-0a11d99e3cc584333
+_igw_external_name = "igw-0a11d99e3cc584333"
 
-# Egress-Only Internet Gateway: eigw-0509f3b2bd1be9138
-_eigw_external_name = ""
+# Egress-Only Internet Gateway: eigw-02d33bcb5e87d8353
+_eigw_external_name = "eigw-02d33bcb5e87d8353"
 
+# Subnets
+_subnet_external_names = {
+    "public-c": "subnet-0739c3679702306eb"
+    "private-a": "subnet-0ba2f584c25e9435d"
+    "public-a": "subnet-0f17f94da9c13d3fe"
+    "public-b": "subnet-0f09414e8042cbee9"
+    "private-b": "subnet-02e4d512f8859e684"
+    "private-c": "subnet-0a46f41be19e3ef54"
+}
 
-_subnet_external_names = {}
-_route_table_external_names = {}
-_rta_external_names = {}
-# # Subnets
-# _subnet_external_names = {
-#     "private-b": ""
-#     "public-c": ""
-#     "public-a": ""
-#     "private-c": ""
-#     "private-a": ""
-#     "public-b": ""
-# }
+# Route Tables
+_route_table_external_names = {
+}
 
-# # Route Tables
-# _route_table_external_names = {
-#     "private-a": ""
-#     "public": ""
-#     "private-c": ""
-#     "private-b": ""
-# }
-
-# # Route Table Associations
-# _rta_external_names = {
-#     "private-a": ""
-#     "public-b": ""
-#     "public-c": ""
-#     "public-a": ""
-#     "private-c": ""
-#     "private-b": ""
-# }
+# Route Table Associations
+_rta_external_names = {
+    "private-b": "rtbassoc-0467a21ef2983ab05"
+    "public-c": "rtbassoc-0aa1510335c53f4ef"
+    "public-b": "rtbassoc-0b7691783473c521d"
+    "public-a": "rtbassoc-0e00d145f499cd225"
+    "private-c": "rtbassoc-059ec0b06a5e86eb1"
+    "private-a": "rtbassoc-0b0027f29b564b6b8"
+}
 
 # NAT Gateways
+# No NAT Gateways found
 _nat_external_names = {}
 _eip_external_names = {}
 
