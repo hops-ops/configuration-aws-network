@@ -26,6 +26,7 @@ spec:
     region: {{ $state.network.region }}
     domain: vpc
     tags:
+      Name: {{ $natConfig.eipName }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}
@@ -51,6 +52,7 @@ spec:
     subnetIdRef:
       name: {{ $natConfig.publicSubnet }}
     tags:
+      Name: {{ $natConfig.name }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}
@@ -61,16 +63,17 @@ spec:
 {{- $natObs := get $state.observed.nat $natConfig.resourceName | default dict }}
 {{- $eipObs := get $state.observed.eip $natConfig.eipResourceName | default dict }}
 
-# Usage: Public subnet protects NAT Gateway
+# Usage: Delete NAT Gateway before public subnet
 {{- if and $publicSubnetObs.ready $natObs.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-{{ $natConfig.publicSubnetResourceName }}-protects-{{ $natConfig.resourceName }}
+  name: {{ $state.network.name }}-delete-{{ $natConfig.resourceName }}-before-{{ $natConfig.publicSubnetResourceName }}
   annotations:
-    {{ setResourceNameAnnotation (printf "usage-%s-%s" $natConfig.publicSubnetResourceName $natConfig.resourceName) }}
+    {{ setResourceNameAnnotation (printf "delete-%s-before-%s" $natConfig.resourceName $natConfig.publicSubnetResourceName) }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: Subnet
@@ -83,16 +86,17 @@ spec:
       name: {{ $natConfig.name }}
 {{- end }}
 
-# Usage: EIP protects NAT Gateway
+# Usage: Delete NAT Gateway before EIP
 {{- if and $eipObs.ready $natObs.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-{{ $natConfig.eipResourceName }}-protects-{{ $natConfig.resourceName }}
+  name: {{ $state.network.name }}-delete-{{ $natConfig.resourceName }}-before-{{ $natConfig.eipResourceName }}
   annotations:
-    {{ setResourceNameAnnotation (printf "usage-%s-%s" $natConfig.eipResourceName $natConfig.resourceName) }}
+    {{ setResourceNameAnnotation (printf "delete-%s-before-%s" $natConfig.resourceName $natConfig.eipResourceName) }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: EIP

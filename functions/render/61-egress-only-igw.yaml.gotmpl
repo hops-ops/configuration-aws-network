@@ -24,21 +24,23 @@ spec:
     vpcIdRef:
       name: {{ $state.network.name }}
     tags:
+      Name: {{ $state.network.name }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: VPC protects Egress-Only IGW
+# Usage: Delete Egress-Only IGW before VPC
 {{- if and $state.observed.vpc.ready $state.observed.eigw.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-vpc-protects-eigw
+  name: {{ $state.network.name }}-delete-eigw-before-vpc
   annotations:
-    {{ setResourceNameAnnotation "usage-vpc-eigw" }}
+    {{ setResourceNameAnnotation "delete-eigw-before-vpc" }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: VPC

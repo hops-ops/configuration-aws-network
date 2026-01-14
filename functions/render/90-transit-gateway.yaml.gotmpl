@@ -31,16 +31,17 @@ spec:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: VPC protects Transit Gateway attachment
+# Usage: Delete Transit Gateway attachment before VPC
 {{- if $state.observed.tgw.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-vpc-protects-tgw-attachment
+  name: {{ $state.network.name }}-delete-tgw-attachment-before-vpc
   annotations:
-    {{ setResourceNameAnnotation "usage-vpc-tgw-attachment" }}
+    {{ setResourceNameAnnotation "delete-tgw-attachment-before-vpc" }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: VPC

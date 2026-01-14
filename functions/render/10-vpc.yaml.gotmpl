@@ -46,6 +46,7 @@ spec:
     {{- end }}
     {{- end }}
     tags:
+      Name: {{ $state.network.name }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}

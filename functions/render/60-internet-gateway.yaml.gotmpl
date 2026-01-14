@@ -24,21 +24,23 @@ spec:
     vpcIdRef:
       name: {{ $state.network.name }}
     tags:
+      Name: {{ $state.network.name }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: VPC protects Internet Gateway
+# Usage: Delete IGW before VPC
 {{- if and $state.observed.vpc.ready $state.observed.igw.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-vpc-protects-igw
+  name: {{ $state.network.name }}-delete-igw-before-vpc
   annotations:
-    {{ setResourceNameAnnotation "usage-vpc-igw" }}
+    {{ setResourceNameAnnotation "delete-igw-before-vpc" }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: VPC
@@ -73,17 +75,18 @@ spec:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: IGW protects public IPv4 route
+# Usage: Delete public IPv4 route before IGW
 {{- $routeIpv4Obs := get $state.observed._readiness "route-public-default-ipv4" | default false }}
 {{- if and $state.observed.igw.ready $routeIpv4Obs }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-igw-protects-route-public-ipv4
+  name: {{ $state.network.name }}-delete-route-public-default-ipv4-before-igw
   annotations:
-    {{ setResourceNameAnnotation "usage-igw-route-public-ipv4" }}
+    {{ setResourceNameAnnotation "delete-route-public-default-ipv4-before-igw" }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: InternetGateway
@@ -119,17 +122,18 @@ spec:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: IGW protects public IPv6 route
+# Usage: Delete public IPv6 route before IGW
 {{- $routeIpv6Obs := get $state.observed._readiness "route-public-default-ipv6" | default false }}
 {{- if and $state.observed.igw.ready $routeIpv6Obs }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-igw-protects-route-public-ipv6
+  name: {{ $state.network.name }}-delete-route-public-default-ipv6-before-igw
   annotations:
-    {{ setResourceNameAnnotation "usage-igw-route-public-ipv6" }}
+    {{ setResourceNameAnnotation "delete-route-public-default-ipv6-before-igw" }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: InternetGateway

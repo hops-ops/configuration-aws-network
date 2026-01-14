@@ -70,16 +70,20 @@ _subnet_external_names = {
 
 # Route Tables
 _route_table_external_names = {
+    "public": "rtb-0ec6e6b72b4069f6d"
+    "private-a": "rtb-0123083a1a6980352"
+    "private-b": "rtb-0f3651ed2fa86b78c"
+    "private-c": "rtb-00bcd173ff8e26c91"
 }
 
 # Route Table Associations
 _rta_external_names = {
-    "private-b": "rtbassoc-0467a21ef2983ab05"
-    "public-c": "rtbassoc-0aa1510335c53f4ef"
-    "public-b": "rtbassoc-0b7691783473c521d"
-    "public-a": "rtbassoc-0e00d145f499cd225"
-    "private-c": "rtbassoc-059ec0b06a5e86eb1"
-    "private-a": "rtbassoc-0b0027f29b564b6b8"
+    "public-a": "rtbassoc-0f55cb72f58eba3c6"
+    "public-b": "rtbassoc-0e260598fc03c1bda"
+    "public-c": "rtbassoc-0ed529b17080a7ff5"
+    "private-a": "rtbassoc-05a8500db23f7e5c4"
+    "private-b": "rtbassoc-04181252701b445f0"
+    "private-c": "rtbassoc-0f81cf5c3e798aa8c"
 }
 
 # NAT Gateways

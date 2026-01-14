@@ -30,21 +30,23 @@ spec:
     vpcIdRef:
       name: {{ $state.network.name }}
     tags:
+      Name: {{ $state.network.routeTables.publicRouteTableName }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: VPC protects public route table
+# Usage: Delete public route table before VPC
 {{- if and $state.observed.vpc.ready $state.observed.rt.public.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-vpc-protects-rt-public
+  name: {{ $state.network.name }}-delete-rt-public-before-vpc
   annotations:
-    {{ setResourceNameAnnotation "usage-vpc-rt-public" }}
+    {{ setResourceNameAnnotation "delete-rt-public-before-vpc" }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: VPC
@@ -111,21 +113,23 @@ spec:
     vpcIdRef:
       name: {{ $state.network.name }}
     tags:
+      Name: {{ $rt.name }}
       {{ $state.network.tags | toYaml | nindent 6 }}
   providerConfigRef:
     name: {{ $state.network.providerConfig.name }}
     kind: {{ $state.network.providerConfig.kind }}
 
-# Usage: VPC protects private route table
+# Usage: Delete private route table before VPC
 {{- if and $state.observed.vpc.ready $rtObs.ready }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
 metadata:
-  name: {{ $state.network.name }}-vpc-protects-{{ $rt.resourceName }}
+  name: {{ $state.network.name }}-delete-{{ $rt.resourceName }}-before-vpc
   annotations:
-    {{ setResourceNameAnnotation (printf "usage-vpc-%s" $rt.resourceName) }}
+    {{ setResourceNameAnnotation (printf "delete-%s-before-vpc" $rt.resourceName) }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: ec2.aws.m.upbound.io/v1beta1
     kind: VPC
