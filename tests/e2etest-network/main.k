@@ -89,8 +89,12 @@ _rta_external_names = {
 # NAT Gateways (populate after first run with NAT enabled)
 # Get NAT IDs: kubectl get natgateway -l crossplane.io/composite=hops-test -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.atProvider.id}{"\n"}{end}'
 # Get EIP IDs: kubectl get eip -l crossplane.io/composite=hops-test -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.atProvider.allocationId}{"\n"}{end}'
-_nat_external_names = {}
-_eip_external_names = {}
+_nat_external_names = {
+    "a": "nat-05a5e2c13be4c716a"
+}
+_eip_external_names = {
+    "a": "eipalloc-09da84030949b878c"
+}
 
 # =============================================================================
 # Test Network
