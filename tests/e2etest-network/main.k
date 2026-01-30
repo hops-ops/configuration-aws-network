@@ -86,10 +86,15 @@ _rta_external_names = {
     "private-c": "rtbassoc-0f81cf5c3e798aa8c"
 }
 
-# NAT Gateways
-# No NAT Gateways found
-_nat_external_names = {}
-_eip_external_names = {}
+# NAT Gateways (populate after first run with NAT enabled)
+# Get NAT IDs: kubectl get natgateway -l crossplane.io/composite=hops-test -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.atProvider.id}{"\n"}{end}'
+# Get EIP IDs: kubectl get eip -l crossplane.io/composite=hops-test -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.atProvider.allocationId}{"\n"}{end}'
+_nat_external_names = {
+    "a": "nat-05a5e2c13be4c716a"
+}
+_eip_external_names = {
+    "a": "eipalloc-09da84030949b878c"
+}
 
 # =============================================================================
 # Test Network
@@ -214,9 +219,13 @@ _items = [
                                 if _rta_external_names:
                                     associationExternalNames: _rta_external_names
                             }
-                        # No NAT gateway (costs money)
                         nat: {
-                            enabled: False
+                            enabled: True
+                            strategy: "SingleAz"
+                            if _nat_external_names:
+                                externalNames: _nat_external_names
+                            if _eip_external_names:
+                                eipExternalNames: _eip_external_names
                         }
                     }
                 }
