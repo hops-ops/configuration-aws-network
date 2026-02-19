@@ -1,5 +1,0 @@
-apiVersion: v2
-name: aws-network
-version: 0.0.0
-description: GitOps packaging for the aws-network bundle
-appVersion: v0.1.0
