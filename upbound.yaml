@@ -11,7 +11,7 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Function
     package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
-    version: '>=v0.6.0'
+    version: '>=v0.6.1'
   description: |
     Network creates AWS VPCs with subnets, routing, NAT gateways, and optional
     enterprise features. Supports IPv4, IPv6, and dual-stack configurations.
