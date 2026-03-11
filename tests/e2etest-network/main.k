@@ -42,58 +42,55 @@ _base64_creds = base64.encode(_creds)
 # =============================================================================
 # IPAM Pools - from aws-ipam e2e test
 # Get pool IDs: aws ec2 describe-ipam-pools --query 'IpamPools[*].[IpamPoolId,AddressFamily,Description]' --output table
-_ipv4_private_pool_id = "ipam-pool-0607416fa3707147a"
-_ipv6_private_pool_id = "ipam-pool-0ca730678e463dbfc"
+_ipv4_private_pool_id = file.read("env/IPAM_POOL_REGIONAL_IPV4").strip()
+_ipv6_private_pool_id = file.read("env/IPAM_POOL_REGIONAL_IPV6").strip()
 
 # Orphan policy - no Delete means resources persist in AWS after claim deletion
 _orphan = ["Create", "Observe", "Update", "LateInitialize"]
 
 # External names for import (leave empty for create, populate for import)
-# VPC: vpc-0c20c458dcb738f21
-_vpc_external_name = "vpc-0c20c458dcb738f21"
+_vpc_external_name = file.read("env/NETWORK_VPC").strip()
 
-# Internet Gateway: igw-0a11d99e3cc584333
-_igw_external_name = "igw-0a11d99e3cc584333"
+_igw_external_name = file.read("env/NETWORK_IGW").strip()
 
-# Egress-Only Internet Gateway: eigw-02d33bcb5e87d8353
-_eigw_external_name = "eigw-02d33bcb5e87d8353"
+_eigw_external_name = file.read("env/NETWORK_EIGW").strip()
 
 # Subnets
 _subnet_external_names = {
-    "public-c": "subnet-0739c3679702306eb"
-    "private-a": "subnet-0ba2f584c25e9435d"
-    "public-a": "subnet-0f17f94da9c13d3fe"
-    "public-b": "subnet-0f09414e8042cbee9"
-    "private-b": "subnet-02e4d512f8859e684"
-    "private-c": "subnet-0a46f41be19e3ef54"
+    "public-c": file.read("env/NETWORK_SUBNET_PUBLIC_C").strip()
+    "private-a": file.read("env/NETWORK_SUBNET_PRIVATE_A").strip()
+    "public-a": file.read("env/NETWORK_SUBNET_PUBLIC_A").strip()
+    "public-b": file.read("env/NETWORK_SUBNET_PUBLIC_B").strip()
+    "private-b": file.read("env/NETWORK_SUBNET_PRIVATE_B").strip()
+    "private-c": file.read("env/NETWORK_SUBNET_PRIVATE_C").strip()
 }
 
 # Route Tables
 _route_table_external_names = {
-    "public": "rtb-0ec6e6b72b4069f6d"
-    "private-a": "rtb-0123083a1a6980352"
-    "private-b": "rtb-0f3651ed2fa86b78c"
-    "private-c": "rtb-00bcd173ff8e26c91"
+    "public": file.read("env/NETWORK_RT_PUBLIC").strip()
+    "private-a": file.read("env/NETWORK_RT_PRIVATE_A").strip()
+    "private-b": file.read("env/NETWORK_RT_PRIVATE_B").strip()
+    "private-c": file.read("env/NETWORK_RT_PRIVATE_C").strip()
 }
 
 # Route Table Associations
 _rta_external_names = {
-    "public-a": "rtbassoc-0f55cb72f58eba3c6"
-    "public-b": "rtbassoc-0e260598fc03c1bda"
-    "public-c": "rtbassoc-0ed529b17080a7ff5"
-    "private-a": "rtbassoc-05a8500db23f7e5c4"
-    "private-b": "rtbassoc-04181252701b445f0"
-    "private-c": "rtbassoc-0f81cf5c3e798aa8c"
+    "public-a": file.read("env/NETWORK_RTA_PUBLIC_A").strip()
+    "public-b": file.read("env/NETWORK_RTA_PUBLIC_B").strip()
+    "public-c": file.read("env/NETWORK_RTA_PUBLIC_C").strip()
+    "private-a": file.read("env/NETWORK_RTA_PRIVATE_A").strip()
+    "private-b": file.read("env/NETWORK_RTA_PRIVATE_B").strip()
+    "private-c": file.read("env/NETWORK_RTA_PRIVATE_C").strip()
 }
 
 # NAT Gateways (populate after first run with NAT enabled)
 # Get NAT IDs: kubectl get natgateway -l crossplane.io/composite=hops-test -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.atProvider.id}{"\n"}{end}'
 # Get EIP IDs: kubectl get eip -l crossplane.io/composite=hops-test -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.atProvider.allocationId}{"\n"}{end}'
 _nat_external_names = {
-    "a": "nat-05a5e2c13be4c716a"
+    "a": file.read("env/NAT_GATEWAY_A").strip()
 }
 _eip_external_names = {
-    "a": "eipalloc-09da84030949b878c"
+    "a": file.read("env/EIP_ALLOCATION_A").strip()
 }
 
 # =============================================================================
@@ -121,7 +118,7 @@ _items = [
                         providerConfigRef: {
                             name: "default"
                         }
-                        region: "us-east-2"
+                        region: file.read("env/AWS_REGION").strip()
                         tags: {
                             "hops.ops.com.ai/test-repo": "https://github.com/hops-ops/aws-network"
                             "hops.ops.com.ai/test-run-time": _now
@@ -168,7 +165,7 @@ _items = [
                         providerConfigRef: {
                             name: "default"
                         }
-                        region: "us-east-2"
+                        region: file.read("env/AWS_REGION").strip()
                         tags: {
                             "hops.ops.com.ai/test-repo": "https://github.com/hops-ops/aws-network"
                             "hops.ops.com.ai/test-run-time": _now

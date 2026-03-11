@@ -3,3 +3,4 @@ _output/
 .venv/
 .tmp/
 tests/**/secrets
+tests/**/env/

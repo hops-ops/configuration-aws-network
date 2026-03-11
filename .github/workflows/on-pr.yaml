@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   validate:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@v2.14.2
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/validate.yaml@v2.20.0
     with:
       examples: |
         [
@@ -46,10 +46,10 @@ jobs:
       error_on_missing_schemas: true
 
   test:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.14.2
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.20.0
 
   e2e:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.14.2
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.20.0
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -60,12 +60,39 @@ jobs:
       aws-region: us-east-2
       timeout-minutes: 30
       cleanup-timeout-minutes: 30
+      write-env-files: true
+      env-vars: |
+        {
+          "IPAM_POOL_REGIONAL_IPV4": "${{ vars.IPAM_POOL_REGIONAL_IPV4 }}",
+          "IPAM_POOL_REGIONAL_IPV6": "${{ vars.IPAM_POOL_REGIONAL_IPV6 }}",
+          "NETWORK_VPC": "${{ vars.NETWORK_VPC }}",
+          "NETWORK_IGW": "${{ vars.NETWORK_IGW }}",
+          "NETWORK_EIGW": "${{ vars.NETWORK_EIGW }}",
+          "NETWORK_SUBNET_PRIVATE_A": "${{ vars.NETWORK_SUBNET_PRIVATE_A }}",
+          "NETWORK_SUBNET_PRIVATE_B": "${{ vars.NETWORK_SUBNET_PRIVATE_B }}",
+          "NETWORK_SUBNET_PRIVATE_C": "${{ vars.NETWORK_SUBNET_PRIVATE_C }}",
+          "NETWORK_SUBNET_PUBLIC_A": "${{ vars.NETWORK_SUBNET_PUBLIC_A }}",
+          "NETWORK_SUBNET_PUBLIC_B": "${{ vars.NETWORK_SUBNET_PUBLIC_B }}",
+          "NETWORK_SUBNET_PUBLIC_C": "${{ vars.NETWORK_SUBNET_PUBLIC_C }}",
+          "NETWORK_RT_PUBLIC": "${{ vars.NETWORK_RT_PUBLIC }}",
+          "NETWORK_RT_PRIVATE_A": "${{ vars.NETWORK_RT_PRIVATE_A }}",
+          "NETWORK_RT_PRIVATE_B": "${{ vars.NETWORK_RT_PRIVATE_B }}",
+          "NETWORK_RT_PRIVATE_C": "${{ vars.NETWORK_RT_PRIVATE_C }}",
+          "NETWORK_RTA_PUBLIC_A": "${{ vars.NETWORK_RTA_PUBLIC_A }}",
+          "NETWORK_RTA_PUBLIC_B": "${{ vars.NETWORK_RTA_PUBLIC_B }}",
+          "NETWORK_RTA_PUBLIC_C": "${{ vars.NETWORK_RTA_PUBLIC_C }}",
+          "NETWORK_RTA_PRIVATE_A": "${{ vars.NETWORK_RTA_PRIVATE_A }}",
+          "NETWORK_RTA_PRIVATE_B": "${{ vars.NETWORK_RTA_PRIVATE_B }}",
+          "NETWORK_RTA_PRIVATE_C": "${{ vars.NETWORK_RTA_PRIVATE_C }}",
+          "NAT_GATEWAY_A": "${{ vars.NAT_GATEWAY_A }}",
+          "EIP_ALLOCATION_A": "${{ vars.EIP_ALLOCATION_A }}"
+        }
 
   publish:
     needs:
       - validate
       - test
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.14.2
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.20.0
     secrets: inherit
     with:
       tag: pr-${{ github.event.pull_request.number }}-${{ github.sha }}
