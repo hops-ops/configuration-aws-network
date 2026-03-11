@@ -57,6 +57,7 @@ jobs:
       aws-region: us-east-2
       timeout-minutes: 30
       cleanup-timeout-minutes: 30
+      write-env-files: true
       env-vars: |
         {
           "IPAM_POOL_REGIONAL_IPV4": "${{ vars.IPAM_POOL_REGIONAL_IPV4 }}",
